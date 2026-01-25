@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -71,15 +72,15 @@ const ActionConfirmModal = ({
           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">{desc}</p>
           <div className="space-y-3">
             <button 
-              onClick={onConfirm}
-              disabled={loading}
+              onClick={onConfirm} 
+              disabled={loading} 
               className={`w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${colors[variant]}`}
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : confirmText}
             </button>
             <button 
-              onClick={onCancel}
-              disabled={loading}
+              onClick={onCancel} 
+              disabled={loading} 
               className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
             >
               Cancelar
@@ -389,15 +390,15 @@ const CancelCampaignModal = ({
 
           <div className="space-y-3">
             <button 
-              onClick={onConfirm}
-              disabled={loading || (hasDonations && !activeCheck)}
+              onClick={onConfirm} 
+              disabled={loading || (hasDonations && !activeCheck)} 
               className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-700 shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar Cancelación'}
             </button>
             <button 
-              onClick={onClose}
-              disabled={loading}
+              onClick={onClose} 
+              disabled={loading} 
               className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
             >
               No, volver atrás
@@ -422,13 +423,13 @@ const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm
         </p>
         <div className="space-y-3">
           <button 
-            onClick={onConfirm}
+            onClick={onConfirm} 
             className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
           >
             Configurar ahora
           </button>
           <button 
-            onClick={onClose}
+            onClick={onClose} 
             className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
           >
             Quizás más tarde
@@ -468,15 +469,15 @@ const WithdrawalConfirmModal = ({
 
         <div className="space-y-3">
           <button 
-            onClick={onConfirm}
-            disabled={loading}
+            onClick={onConfirm} 
+            disabled={loading} 
             className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <><Check size={18} /> Solicitar Retiro</>}
           </button>
           <button 
-            onClick={onClose}
-            disabled={loading}
+            onClick={onClose} 
+            disabled={loading} 
             className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
           >
             Cancelar
@@ -499,7 +500,7 @@ const WithdrawalSuccessModal = ({ onClose }: { onClose: () => void }) => (
           Hemos recibido tu solicitud de retiro. Nuestro equipo de finanzas procesará la transferencia en un plazo de 48 a 72 horas hábiles.
         </p>
         <button 
-          onClick={onClose}
+          onClick={onClose} 
           className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
         >
           Entendido
@@ -913,7 +914,7 @@ const Dashboard: React.FC = () => {
         <ActionConfirmModal 
           title={confirmModal.title} 
           desc={confirmModal.desc} 
-          variant={confirmModal.variant}
+          variant={confirmModal.variant} 
           onConfirm={confirmModal.onConfirm} 
           onCancel={() => setConfirmModal(null)} 
         />
@@ -1001,7 +1002,7 @@ const Dashboard: React.FC = () => {
                       
                       {c.estado === 'cancelada' ? (
                         <button 
-                          onClick={() => setSelectedCampaignForRefund(c)}
+                          onClick={() => setSelectedCampaignForRefund(c)} 
                           className="flex items-center gap-1.5 text-violet-600 hover:text-violet-700 font-black transition-colors"
                         >
                           <RefreshCw size={10} className="animate-spin-slow" />
@@ -1020,8 +1021,8 @@ const Dashboard: React.FC = () => {
                         <Link to={`/campana/${c.id}/editar`} className="w-11 h-11 bg-violet-50 text-violet-600 hover:bg-violet-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"><Edit3 size={20} /></Link>
                         
                         <button 
-                          onClick={() => handleTogglePause(c)}
-                          disabled={actionLoading === c.id}
+                          onClick={() => handleTogglePause(c)} 
+                          disabled={actionLoading === c.id} 
                           className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm ${
                             c.estado === 'pausada' 
                             ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white' 
@@ -1033,7 +1034,7 @@ const Dashboard: React.FC = () => {
                         </button>
 
                         <button 
-                          onClick={() => handleCancelClick(c)}
+                          onClick={() => handleCancelClick(c)} 
                           className="w-11 h-11 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
                           title="Cancelar Campaña"
                         >
@@ -1059,7 +1060,7 @@ const Dashboard: React.FC = () => {
                   <div key={don.id} className="bg-white p-4 rounded-[32px] border border-slate-100 flex flex-col md:flex-row items-center gap-6 group hover:shadow-lg transition-all duration-300">
                     <div className="w-full md:w-32 h-20 rounded-[24px] overflow-hidden shrink-0 shadow-sm"><img src={don.campaign?.imagenUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" /></div>
                     <div className="flex-grow w-full space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Donaste a</p><h4 className="text-lg font-black text-slate-900 leading-tight group-hover:text-violet-600 transition-colors">{don.campaign?.titulo || 'Campaña'}</h4><div className="flex items-center gap-3"><div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold uppercase tracking-widest"><Calendar size={12} className="text-slate-300" />{new Date(don.fecha).toLocaleDateString('es-CL')}</div><div className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">EXITOSO</div></div></div>
-                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${don.amountTotal.toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
+                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${don.amountCause.toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
                   </div>
                 ))}
               </div>
@@ -1123,8 +1124,8 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="w-full md:w-auto">
                       <button 
-                        onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)}
-                        disabled={actionLoading === c.id}
+                        onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
+                        disabled={actionLoading === c.id} 
                         className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
@@ -1211,7 +1212,7 @@ const Dashboard: React.FC = () => {
                           placeholder="12.345.678-9" 
                           value={bankForm.holderRut} 
                           onChange={e => setBankForm({...bankForm, holderRut: formatRut(e.target.value)})} 
-                          onBlur={handleBankRutBlur}
+                          onBlur={handleBankRutBlur} 
                           required 
                         />
                         {bankRutError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankRutError}</p>}
@@ -1255,7 +1256,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <button 
-                      onClick={handleToggle2FA}
+                      onClick={handleToggle2FA} 
                       className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none ${profile?.two_factor_enabled ? 'bg-violet-600' : 'bg-slate-300'}`}
                     >
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all ${profile?.two_factor_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1306,7 +1307,7 @@ const Dashboard: React.FC = () => {
                               className={`w-full p-6 bg-slate-50 border-2 ${rutError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
                               value={profileForm.rut} 
                               onChange={e => setProfileForm({...profileForm, rut: formatRut(e.target.value)})} 
-                              onBlur={handleRutBlur}
+                              onBlur={handleRutBlur} 
                               placeholder="12.345.678-9" 
                             />
                             {rutError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{rutError}</p>}
