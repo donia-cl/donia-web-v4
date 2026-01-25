@@ -216,7 +216,7 @@ const NotificationModal = ({
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
         <div className="p-8 text-center">
           <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-6 ${bgColors[type]}`}>
             {icons[type]}
@@ -872,7 +872,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleBankRutBlur = () => {
-    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT inválido.");
+    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT del titular inválido.");
     else setBankRutError(null);
   };
 
@@ -1278,7 +1278,7 @@ const Dashboard: React.FC = () => {
                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Registrado</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.full_name || 'Sin registro'}</div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.region || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.city || 'Sin registro'}</div></div></div>
-                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
+                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-400 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
                      <div className="pt-6 border-t border-slate-50">
                         <button 
                           onClick={() => setConfirmModal({

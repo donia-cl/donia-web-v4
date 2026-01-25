@@ -21,6 +21,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Inicializamos el estado desde sessionStorage para mantener el bloqueo en F5
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -49,13 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Cargar sesión inicial
+        // Cargar sesión inicial de forma silenciosa
         const { data: { session } } = await client.auth.getSession();
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
           setUser(session.user);
           setProfile(p);
-          // Si hay sesión pero el lock está activo en session storage, se mantiene oculto
         }
         if (mountedRef.current) setLoading(false);
 
@@ -66,13 +67,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (currentUser) {
-              // Antes de exponer el usuario, verificamos 2FA de forma atómica
+              // IMPORTANTE: No activamos el bloqueo aquí automáticamente.
+              // El bloqueo solo se activa desde el componente Auth.tsx durante el flujo de login.
+              // Aquí solo actualizamos los datos de identidad.
               const p = await authService.fetchProfile(currentUser.id);
-              if (p?.two_factor_enabled && event === 'SIGNED_IN') {
-                // Si acaba de loguearse y tiene 2FA, bloqueamos antes de que la UI lo vea
-                set2FAWaitingStatus(true);
-              }
-              
               setUser(currentUser);
               setProfile(p);
             }
@@ -123,7 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Exponemos el usuario solo si no hay un 2FA pendiente
+  // El usuario expuesto es null si estamos esperando el 2FA, 
+  // lo que protege las vistas privadas y el Header.
   const exposedUser = is2FAWaiting ? null : user;
 
   if (loading) {
