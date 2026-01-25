@@ -21,8 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // El 'lock' se persiste en sessionStorage para que un F5 no salte el 2FA si la sesión de Supabase ya existe
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -31,19 +29,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
 
-  const loadUserProfile = async (currentUser: any, retryCount = 0): Promise<Profile | null> => {
-    if (!currentUser || !mountedRef.current || isSigningOut.current) return null;
-    try {
-      let userProfile = await authService.fetchProfile(currentUser.id);
-      if (!userProfile && retryCount < 2 && !currentUser.id.startsWith('mock-')) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return loadUserProfile(currentUser, retryCount + 1);
-      }
-      return userProfile;
-    } catch (err) {
-      console.error(`Error loading profile for user ${currentUser.id}:`, err);
-      return null;
-    }
+  const set2FAWaitingStatus = (waiting: boolean) => {
+    setIs2FAWaiting(waiting);
+    if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
+    else sessionStorage.removeItem('donia_2fa_lock');
   };
 
   useEffect(() => {
@@ -55,38 +44,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await authService.initialize();
         const client = authService.getSupabase();
         
-        const session = await authService.getSession();
-        if (session?.user && mountedRef.current) {
-            setUser(session.user);
-            const p = await loadUserProfile(session.user);
-            setProfile(p);
-            setLoading(false);
-        }
-
         if (!client) {
           if (mountedRef.current) setLoading(false);
           return;
         }
+
+        // Cargar sesión inicial
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user && mountedRef.current) {
+          const p = await authService.fetchProfile(session.user.id);
+          setUser(session.user);
+          setProfile(p);
+          // Si hay sesión pero el lock está activo en session storage, se mantiene oculto
+        }
+        if (mountedRef.current) setLoading(false);
 
         const { data } = (client.auth as any).onAuthStateChange(async (event, session) => {
           if (!mountedRef.current || isSigningOut.current) return;
           
           const currentUser = session?.user ?? null;
           
-          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            setUser(currentUser);
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (currentUser) {
-              const p = await loadUserProfile(currentUser);
-              if (mountedRef.current) setProfile(p);
+              // Antes de exponer el usuario, verificamos 2FA de forma atómica
+              const p = await authService.fetchProfile(currentUser.id);
+              if (p?.two_factor_enabled && event === 'SIGNED_IN') {
+                // Si acaba de loguearse y tiene 2FA, bloqueamos antes de que la UI lo vea
+                set2FAWaitingStatus(true);
+              }
+              
+              setUser(currentUser);
+              setProfile(p);
             }
-            if (mountedRef.current) setLoading(false);
           }
           
           if (event === 'SIGNED_OUT') {
             setUser(null);
             setProfile(null);
             set2FAWaitingStatus(false);
-            if (mountedRef.current) setLoading(false);
           }
         });
 
@@ -106,12 +101,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const set2FAWaitingStatus = (waiting: boolean) => {
-    setIs2FAWaiting(waiting);
-    if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
-    else sessionStorage.removeItem('donia_2fa_lock');
-  };
-
   const signOut = async () => {
     if (isSigningOut.current) return;
     isSigningOut.current = true;
@@ -129,13 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user && mountedRef.current && !isSigningOut.current) {
-      const p = await loadUserProfile(user);
+      const p = await authService.fetchProfile(user.id);
       setProfile(p);
     }
   };
 
-  // SEGURIDAD FRONTEND: Si estamos esperando 2FA, exponemos 'null' como usuario
-  // Esto evita que componentes como el Header muestren el nombre o el Dashboard se cargue.
+  // Exponemos el usuario solo si no hay un 2FA pendiente
   const exposedUser = is2FAWaiting ? null : user;
 
   if (loading) {

@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X } from 'lucide-react';
+import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { useAuth } from '../context/AuthContext';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, is2FAWaiting, signOut } = useAuth();
   const isWizard = location.pathname.startsWith('/crear');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -40,7 +40,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     </>
   );
 
-  // Fuente de verdad para el nombre: Perfil > Metadata de Auth > Email
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Mi Perfil';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
@@ -60,11 +59,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             
             {!isWizard && (
               <>
-                {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center space-x-8">
                   <NavLinks />
                   <div className="h-6 w-px bg-slate-100 mx-2"></div>
-                  {user ? (
+                  
+                  {is2FAWaiting ? (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-600 rounded-2xl border border-violet-100 animate-pulse">
+                      <ShieldCheck size={16} />
+                      <span className="text-xs font-black uppercase tracking-widest">Seguridad</span>
+                    </div>
+                  ) : user ? (
                     <div className="relative">
                       <button 
                         onClick={() => setShowUserMenu(!showUserMenu)}
@@ -106,12 +110,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       Ingresar
                     </Link>
                   )}
+                  
                   <Link to="/crear" className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-100 text-sm">
                     Crear campaña
                   </Link>
                 </nav>
 
-                {/* Mobile Toggle */}
                 <button 
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className="md:hidden p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
@@ -129,15 +133,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         </div>
 
-        {/* Mobile Menu Overlay */}
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 top-20 bg-white z-[60] p-6 animate-in slide-in-from-top-4 duration-300">
             <nav className="flex flex-col space-y-6">
               <Link to="/explorar" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-black text-slate-900 py-2 border-b border-slate-50">Explorar causas</Link>
               <Link to="/acerca" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-black text-slate-900 py-2 border-b border-slate-50">Cómo funciona</Link>
-              <Link to="/ayuda" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-black text-slate-900 py-2 border-b border-slate-50">Centro de Ayuda</Link>
               
-              {user ? (
+              {is2FAWaiting ? (
+                <div className="text-2xl font-black text-violet-600 py-2 border-b border-slate-50 flex items-center gap-2">
+                  <ShieldCheck /> Verificando...
+                </div>
+              ) : user ? (
                 <>
                   <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-black text-violet-600 py-2 border-b border-slate-50">Mi Panel</Link>
                   <button onClick={handleLogout} className="text-2xl font-black text-rose-600 py-2 text-left border-b border-slate-50">Cerrar Sesión</button>
