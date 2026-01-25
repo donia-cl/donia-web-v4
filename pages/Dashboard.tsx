@@ -216,7 +216,7 @@ const NotificationModal = ({
 
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
         <div className="p-8 text-center">
           <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-6 ${bgColors[type]}`}>
             {icons[type]}
@@ -300,35 +300,119 @@ const PasswordModal = ({ userId, onClose }: { userId: string, onClose: () => voi
 };
 
 const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, profileName?: string, onClose: () => void }) => {
+  const formattedDate = new Date(donation.fecha).toLocaleString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900"><X size={20} /></button>
-        <div className="p-8">
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-[24px] flex items-center justify-center mb-4"><Check size={32} /></div>
-            <h3 className="text-2xl font-black text-slate-900">Comprobante de Donación</h3>
-            <p className="text-slate-400 text-xs font-black uppercase tracking-widest mt-1">Donia Chile SpA</p>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto py-10">
+      <div className="bg-white w-full max-w-xl rounded-[48px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="p-8 md:p-12">
+          {/* Logo Area */}
+          <div className="flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 bg-violet-600 text-white rounded-[20px] flex items-center justify-center mb-6 shadow-xl shadow-violet-100">
+              <Heart size={32} className="fill-current" />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Comprobante de Donación</h3>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Donia Chile SpA • Santiago</p>
           </div>
-          
-          <div className="space-y-4 border-2 border-dashed border-slate-100 p-6 rounded-3xl bg-slate-50/30">
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Donante</span><span className="text-sm font-bold text-slate-700">{donation.nombreDonante || profileName || 'Anónimo'}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campaña</span><span className="text-sm font-bold text-slate-700 text-right max-w-[200px] truncate">{donation.campaign?.titulo}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha</span><span className="text-sm font-bold text-slate-700">{new Date(donation.fecha).toLocaleDateString('es-CL')}</span></div>
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Donado</span>
-              <span className="text-2xl font-black text-slate-900">${donation.amountTotal.toLocaleString('es-CL')}</span>
+
+          {/* Operation Info Box */}
+          <div className="bg-slate-50/80 rounded-[32px] p-8 mb-10 border border-slate-100">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">ID OPERACIÓN</span>
+                <span className="text-sm font-black text-slate-900">{donation.paymentId || donation.id.substring(0, 12)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">FECHA</span>
+                <span className="text-sm font-black text-slate-900 uppercase">{formattedDate}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">DONANTE</span>
+                <span className="text-sm font-black text-slate-900">{donation.nombreDonante || profileName || 'Anónimo'}</span>
+              </div>
             </div>
           </div>
-          
-          <p className="text-[10px] text-slate-400 text-center mt-6 font-medium px-4">Este documento es un comprobante informativo de tu aporte solidario a través de Donia.</p>
-          
-          <div className="mt-8 flex gap-3">
-            <button onClick={() => window.print()} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"><Printer size={16} /> Imprimir</button>
-            <button onClick={onClose} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Cerrar</button>
+
+          {/* Destined to Section */}
+          <div className="px-2 mb-10">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">DESTINADO A LA CAUSA</p>
+            <h4 className="text-2xl font-black text-slate-900 mb-1">{donation.campaign?.titulo || 'Campaña'}</h4>
+            <p className="text-sm text-slate-500 font-bold">Beneficiario: <span className="text-slate-700">{donation.campaign?.beneficiarioNombre || 'Donia'}</span></p>
+          </div>
+
+          {/* Financial Breakdown */}
+          <div className="px-2 space-y-4 mb-8 pt-8 border-t border-slate-100 border-dashed">
+            <div className="flex justify-between items-center">
+              <span className="text-base font-bold text-slate-600">Donación neta</span>
+              <span className="text-lg font-black text-slate-900">${(donation.amountCause || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-base font-bold text-slate-600">Apoyo Donia (Propina)</span>
+              <span className="text-lg font-black text-slate-900">${(donation.amountTip || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-base font-bold text-slate-600">Costos operacionales</span>
+              <span className="text-lg font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="pt-4 border-t-2 border-slate-900 flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">TOTAL PAGADO</span>
+              <span className="text-5xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
+            </div>
+          </div>
+
+          {/* Legal Footer Box */}
+          <div className="bg-slate-50 rounded-[24px] p-6 mb-10 text-center border border-slate-100/50">
+            <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase">
+              ESTE DOCUMENTO ES UN COMPROBANTE INFORMATIVO Y NO CONSTITUYE UNA BOLETA O FACTURA ELECTRÓNICA PARA FINES TRIBUTARIOS EN CHILE. EL APORTE REALIZADO CORRESPONDE A UNA DONACIÓN VOLUNTARIA PROCESADA A TRAVÉS DE DONIA SPA.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-4 no-print">
+            <button 
+              onClick={() => window.print()} 
+              className="flex-1 py-5 bg-slate-100 text-slate-900 rounded-[24px] font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
+            >
+              <Download size={18} /> Descargar
+            </button>
+            <button 
+              onClick={onClose} 
+              className="flex-1 py-5 bg-slate-900 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
+      
+      {/* Estilos para impresión del comprobante */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .no-print { display: none !important; }
+          .fixed { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; background: white !important; padding: 0 !important; }
+          .bg-slate-900\\/60 { background: white !important; backdrop-filter: none !important; }
+          .shadow-2xl { shadow: none !important; }
+          .animate-in { animation: none !important; }
+          .fixed.inset-0.z-\\[150\\].flex.items-center.justify-center { 
+            visibility: visible; 
+            position: absolute !important;
+            display: block !important;
+          }
+          .fixed.inset-0.z-\\[150\\] * { visibility: visible; }
+          .rounded-\\[48px\\] { border-radius: 0 !important; border: none !important; }
+          .max-w-xl { max-width: 100% !important; }
+          .p-8, .p-12 { padding: 20px !important; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -872,7 +956,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleBankRutBlur = () => {
-    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT del titular inválido.");
+    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT inválido.");
     else setBankRutError(null);
   };
 
@@ -1060,7 +1144,7 @@ const Dashboard: React.FC = () => {
                   <div key={don.id} className="bg-white p-4 rounded-[32px] border border-slate-100 flex flex-col md:flex-row items-center gap-6 group hover:shadow-lg transition-all duration-300">
                     <div className="w-full md:w-32 h-20 rounded-[24px] overflow-hidden shrink-0 shadow-sm"><img src={don.campaign?.imagenUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" /></div>
                     <div className="flex-grow w-full space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Donaste a</p><h4 className="text-lg font-black text-slate-900 leading-tight group-hover:text-violet-600 transition-colors">{don.campaign?.titulo || 'Campaña'}</h4><div className="flex items-center gap-3"><div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold uppercase tracking-widest"><Calendar size={12} className="text-slate-300" />{new Date(don.fecha).toLocaleDateString('es-CL')}</div><div className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">EXITOSO</div></div></div>
-                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${don.amountCause.toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
+                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${(don.amountCause || 0).toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
                   </div>
                 ))}
               </div>
