@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Heart, RefreshCw, Send, CheckCircle2, ArrowLeft, ShieldCheck, Fingerprint, Key, Sparkles, Check } from 'lucide-react';
 import { AuthService } from '../services/AuthService';
+import { useAuth } from '../context/AuthContext';
 
 const Auth: React.FC = () => {
+  const { set2FAWaiting, signOut } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -61,11 +63,27 @@ const Auth: React.FC = () => {
       const result = await resp.json();
       if (!result.success) throw new Error(result.error);
       
-      // Código correcto, proceder al dashboard
+      // Código correcto: Liberamos el bloqueo en el contexto global
+      set2FAWaiting(false);
+      
+      // Proceder al dashboard
       const from = (location.state as any)?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.message || "Código incorrecto.");
+      setLoading(false);
+    }
+  };
+
+  const cancel2FALogin = async () => {
+    setLoading(true);
+    try {
+      // Si cancela, cerramos la sesión parcial de Supabase para limpiar todo
+      await signOut(); 
+      setIs2FAStep(false);
+      setTwoFactorCode('');
+      setError(null);
+    } finally {
       setLoading(false);
     }
   };
@@ -135,6 +153,9 @@ const Auth: React.FC = () => {
         // Verificar si tiene 2FA activo en su perfil
         const profile = await authService.fetchProfile(user.id);
         if (profile?.two_factor_enabled) {
+          // ACTIVAR BLOQUEO EN EL CONTEXTO GLOBAL INMEDIATAMENTE
+          set2FAWaiting(true);
+
           // Solicitar envío de OTP de login
           await fetch('/api/security-otp', {
             method: 'POST',
@@ -205,7 +226,7 @@ const Auth: React.FC = () => {
           <form onSubmit={handle2FAVerify} className="space-y-6">
             <input type="text" maxLength={6} autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[15px] outline-none" value={twoFactorCode} onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
             <button type="submit" disabled={loading || twoFactorCode.length !== 6} className="w-full py-5 bg-violet-600 text-white rounded-2xl font-black text-lg hover:bg-violet-700 shadow-xl flex items-center justify-center gap-2 disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={24} /> : 'Verificar y Entrar'}</button>
-            <button type="button" onClick={() => { setIs2FAStep(false); setTwoFactorCode(''); setError(null); }} className="text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600">Cancelar inicio de sesión</button>
+            <button type="button" onClick={cancel2FALogin} className="text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600">Cancelar inicio de sesión</button>
           </form>
         </div>
       </div>
@@ -242,7 +263,7 @@ const Auth: React.FC = () => {
 
           {recoveryStep === 'otp' && (
             <form onSubmit={handleRecoveryOTPVerify} className="space-y-6">
-               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setRecoveryOTP(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
+               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
                <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black hover:bg-violet-700 transition-all">Validar código</button>
                <button type="button" onClick={() => setRecoveryStep('email')} className="w-full text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600">Volver a intentar con otro email</button>
             </form>
