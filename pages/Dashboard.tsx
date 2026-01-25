@@ -312,80 +312,80 @@ const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, 
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto py-10">
-      <div className="bg-white w-full max-w-xl rounded-[48px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-        <div className="p-8 md:p-12">
+      <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="p-6 md:p-8">
           {/* Logo Area */}
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 bg-violet-600 text-white rounded-[20px] flex items-center justify-center mb-6 shadow-xl shadow-violet-100">
-              <Heart size={32} className="fill-current" />
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-12 h-12 bg-violet-600 text-white rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-violet-100">
+              <Heart size={24} className="fill-current" />
             </div>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Comprobante de Donación</h3>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Donia Chile SpA • Santiago</p>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">Comprobante de Donación</h3>
+            <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em]">Donia Chile SpA • Santiago</p>
           </div>
 
           {/* Operation Info Box */}
-          <div className="bg-slate-50/80 rounded-[32px] p-8 mb-10 border border-slate-100">
-            <div className="space-y-4">
+          <div className="bg-slate-50/80 rounded-[24px] p-5 mb-6 border border-slate-100">
+            <div className="space-y-2.5">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">ID OPERACIÓN</span>
-                <span className="text-sm font-black text-slate-900">{donation.paymentId || donation.id.substring(0, 12)}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">ID OPERACIÓN</span>
+                <span className="text-xs font-black text-slate-900">{donation.paymentId || donation.id.substring(0, 12)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">FECHA</span>
-                <span className="text-sm font-black text-slate-900 uppercase">{formattedDate}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">FECHA</span>
+                <span className="text-xs font-black text-slate-900 uppercase">{formattedDate}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">DONANTE</span>
-                <span className="text-sm font-black text-slate-900">{donation.nombreDonante || profileName || 'Anónimo'}</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">DONANTE</span>
+                <span className="text-xs font-black text-slate-900">{donation.nombreDonante || profileName || 'Anónimo'}</span>
               </div>
             </div>
           </div>
 
           {/* Destined to Section */}
-          <div className="px-2 mb-10">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">DESTINADO A LA CAUSA</p>
-            <h4 className="text-2xl font-black text-slate-900 mb-1">{donation.campaign?.titulo || 'Campaña'}</h4>
-            <p className="text-sm text-slate-500 font-bold">Beneficiario: <span className="text-slate-700">{donation.campaign?.beneficiarioNombre || 'Donia'}</span></p>
+          <div className="px-1 mb-6">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em] mb-2">DESTINADO A LA CAUSA</p>
+            <h4 className="text-xl font-black text-slate-900 mb-0.5 line-clamp-2">{donation.campaign?.titulo || 'Campaña'}</h4>
+            <p className="text-xs text-slate-500 font-bold">Beneficiario: <span className="text-slate-700">{donation.campaign?.beneficiarioNombre || 'Donia'}</span></p>
           </div>
 
           {/* Financial Breakdown */}
-          <div className="px-2 space-y-4 mb-8 pt-8 border-t border-slate-100 border-dashed">
+          <div className="px-1 space-y-2.5 mb-6 pt-5 border-t border-slate-100 border-dashed">
             <div className="flex justify-between items-center">
-              <span className="text-base font-bold text-slate-600">Donación neta</span>
-              <span className="text-lg font-black text-slate-900">${(donation.amountCause || 0).toLocaleString('es-CL')}</span>
+              <span className="text-sm font-bold text-slate-600">Donación neta</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountCause || 0).toLocaleString('es-CL')}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-base font-bold text-slate-600">Apoyo Donia (Propina)</span>
-              <span className="text-lg font-black text-slate-900">${(donation.amountTip || 0).toLocaleString('es-CL')}</span>
+              <span className="text-sm font-bold text-slate-600">Apoyo Donia (Propina)</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountTip || 0).toLocaleString('es-CL')}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-base font-bold text-slate-600">Costos operacionales</span>
-              <span className="text-lg font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
+              <span className="text-sm font-bold text-slate-600">Costos operacionales</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
             </div>
-            <div className="pt-4 border-t-2 border-slate-900 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">TOTAL PAGADO</span>
-              <span className="text-5xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
+            <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.15em]">TOTAL PAGADO</span>
+              <span className="text-3xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
             </div>
           </div>
 
           {/* Legal Footer Box */}
-          <div className="bg-slate-50 rounded-[24px] p-6 mb-10 text-center border border-slate-100/50">
-            <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase">
+          <div className="bg-slate-50 rounded-[16px] p-4 mb-8 text-center border border-slate-100/50">
+            <p className="text-[9px] text-slate-400 font-bold leading-relaxed uppercase">
               ESTE DOCUMENTO ES UN COMPROBANTE INFORMATIVO Y NO CONSTITUYE UNA BOLETA O FACTURA ELECTRÓNICA PARA FINES TRIBUTARIOS EN CHILE. EL APORTE REALIZADO CORRESPONDE A UNA DONACIÓN VOLUNTARIA PROCESADA A TRAVÉS DE DONIA SPA.
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-4 no-print">
+          <div className="flex gap-3 no-print">
             <button 
               onClick={() => window.print()} 
-              className="flex-1 py-5 bg-slate-100 text-slate-900 rounded-[24px] font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
+              className="flex-1 py-4 bg-slate-100 text-slate-900 rounded-[20px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
             >
-              <Download size={18} /> Descargar
+              <Download size={16} /> Descargar
             </button>
             <button 
               onClick={onClose} 
-              className="flex-1 py-5 bg-slate-900 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+              className="flex-1 py-4 bg-slate-900 text-white rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
             >
               Cerrar
             </button>
@@ -408,9 +408,9 @@ const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, 
             display: block !important;
           }
           .fixed.inset-0.z-\\[150\\] * { visibility: visible; }
-          .rounded-\\[48px\\] { border-radius: 0 !important; border: none !important; }
-          .max-w-xl { max-width: 100% !important; }
-          .p-8, .p-12 { padding: 20px !important; }
+          .rounded-\\[40px\\] { border-radius: 0 !important; border: none !important; }
+          .max-w-md { max-width: 100% !important; }
+          .p-6, .p-8 { padding: 20px !important; }
         }
       `}</style>
     </div>
@@ -1362,7 +1362,7 @@ const Dashboard: React.FC = () => {
                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Registrado</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.full_name || 'Sin registro'}</div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.region || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.city || 'Sin registro'}</div></div></div>
-                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-400 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
+                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
                      <div className="pt-6 border-t border-slate-50">
                         <button 
                           onClick={() => setConfirmModal({
