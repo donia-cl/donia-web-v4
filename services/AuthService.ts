@@ -32,12 +32,13 @@ export class AuthService {
 
   /**
    * Obtiene la URL base para redirecciones de Auth (OAuth, Verificación).
-   * Se asegura de incluir la barra diagonal final para coincidir exactamente
-   * con la configuración típica de Supabase Redirect URLs.
+   * Devuelve el origen exacto SIN barra diagonal final para asegurar la coincidencia
+   * con la lista de "Additional Redirect URLs" de Supabase.
    */
   private getCanonicalUrl(): string {
     const origin = window.location.origin;
-    return origin.endsWith('/') ? origin : `${origin}/`;
+    // Eliminamos cualquier slash final para consistencia con la configuración de Supabase
+    return origin.replace(/\/$/, '');
   }
 
   public async initialize(): Promise<void> {
@@ -105,11 +106,14 @@ export class AuthService {
   public async signInWithGoogle(): Promise<any> {
     await this.initialize();
     if (this.client) {
+      // Usamos el origen limpio (ej: https://staging.donia.cl)
+      const redirectTo = this.getCanonicalUrl();
+      
       const { data, error } = await this.client.auth.signInWithOAuth({ 
         provider: 'google', 
         options: { 
           queryParams: { access_type: 'offline', prompt: 'consent' }, 
-          redirectTo: this.getCanonicalUrl() 
+          redirectTo: redirectTo 
         } 
       });
       if (error) throw error;
@@ -131,6 +135,26 @@ export class AuthService {
         .replace(/^ +/, "")
         .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
     });
+  }
+
+  public async requestPasswordRecovery(email: string): Promise<void> {
+    const resp = await fetch('/api/recover-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request', email })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || "Error solicitando recuperación");
+  }
+
+  public async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    const resp = await fetch('/api/recover-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset', email, code, newPassword })
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || "No se pudo restablecer la contraseña");
   }
 
   public async requestPasswordOTP(userId: string): Promise<void> {

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -71,15 +72,15 @@ const ActionConfirmModal = ({
           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">{desc}</p>
           <div className="space-y-3">
             <button 
-              onClick={onConfirm}
-              disabled={loading}
+              onClick={onConfirm} 
+              disabled={loading} 
               className={`w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${colors[variant]}`}
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : confirmText}
             </button>
             <button 
-              onClick={onCancel}
-              disabled={loading}
+              onClick={onCancel} 
+              disabled={loading} 
               className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
             >
               Cancelar
@@ -299,35 +300,119 @@ const PasswordModal = ({ userId, onClose }: { userId: string, onClose: () => voi
 };
 
 const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, profileName?: string, onClose: () => void }) => {
+  const formattedDate = new Date(donation.fecha).toLocaleString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900"><X size={20} /></button>
-        <div className="p-8">
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-[24px] flex items-center justify-center mb-4"><Check size={32} /></div>
-            <h3 className="text-2xl font-black text-slate-900">Comprobante de Donación</h3>
-            <p className="text-slate-400 text-xs font-black uppercase tracking-widest mt-1">Donia Chile SpA</p>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto py-10">
+      <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="p-6 md:p-8">
+          {/* Logo Area */}
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-12 h-12 bg-violet-600 text-white rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-violet-100">
+              <Heart size={24} className="fill-current" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-1">Comprobante de Donación</h3>
+            <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em]">Donia Chile SpA • Santiago</p>
           </div>
-          
-          <div className="space-y-4 border-2 border-dashed border-slate-100 p-6 rounded-3xl bg-slate-50/30">
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Donante</span><span className="text-sm font-bold text-slate-700">{donation.nombreDonante || profileName || 'Anónimo'}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campaña</span><span className="text-sm font-bold text-slate-700 text-right max-w-[200px] truncate">{donation.campaign?.titulo}</span></div>
-            <div className="flex justify-between items-center"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha</span><span className="text-sm font-bold text-slate-700">{new Date(donation.fecha).toLocaleDateString('es-CL')}</span></div>
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Donado</span>
-              <span className="text-2xl font-black text-slate-900">${donation.amountTotal.toLocaleString('es-CL')}</span>
+
+          {/* Operation Info Box */}
+          <div className="bg-slate-50/80 rounded-[24px] p-5 mb-6 border border-slate-100">
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">ID OPERACIÓN</span>
+                <span className="text-xs font-black text-slate-900">{donation.paymentId || donation.id.substring(0, 12)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">FECHA</span>
+                <span className="text-xs font-black text-slate-900 uppercase">{formattedDate}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em]">DONANTE</span>
+                <span className="text-xs font-black text-slate-900">{donation.nombreDonante || profileName || 'Anónimo'}</span>
+              </div>
             </div>
           </div>
-          
-          <p className="text-[10px] text-slate-400 text-center mt-6 font-medium px-4">Este documento es un comprobante informativo de tu aporte solidario a través de Donia.</p>
-          
-          <div className="mt-8 flex gap-3">
-            <button onClick={() => window.print()} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"><Printer size={16} /> Imprimir</button>
-            <button onClick={onClose} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Cerrar</button>
+
+          {/* Destined to Section */}
+          <div className="px-1 mb-6">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.12em] mb-2">DESTINADO A LA CAUSA</p>
+            <h4 className="text-xl font-black text-slate-900 mb-0.5 line-clamp-2">{donation.campaign?.titulo || 'Campaña'}</h4>
+            <p className="text-xs text-slate-500 font-bold">Beneficiario: <span className="text-slate-700">{donation.campaign?.beneficiarioNombre || 'Donia'}</span></p>
+          </div>
+
+          {/* Financial Breakdown */}
+          <div className="px-1 space-y-2.5 mb-6 pt-5 border-t border-slate-100 border-dashed">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-600">Donación neta</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountCause || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-600">Apoyo Donia (Propina)</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountTip || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-600">Costos operacionales</span>
+              <span className="text-base font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
+            </div>
+            <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center">
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.15em]">TOTAL PAGADO</span>
+              <span className="text-3xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
+            </div>
+          </div>
+
+          {/* Legal Footer Box */}
+          <div className="bg-slate-50 rounded-[16px] p-4 mb-8 text-center border border-slate-100/50">
+            <p className="text-[9px] text-slate-400 font-bold leading-relaxed uppercase">
+              ESTE DOCUMENTO ES UN COMPROBANTE INFORMATIVO Y NO CONSTITUYE UNA BOLETA O FACTURA ELECTRÓNICA PARA FINES TRIBUTARIOS EN CHILE. EL APORTE REALIZADO CORRESPONDE A UNA DONACIÓN VOLUNTARIA PROCESADA A TRAVÉS DE DONIA SPA.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 no-print">
+            <button 
+              onClick={() => window.print()} 
+              className="flex-1 py-4 bg-slate-100 text-slate-900 rounded-[20px] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
+            >
+              <Download size={16} /> Descargar
+            </button>
+            <button 
+              onClick={onClose} 
+              className="flex-1 py-4 bg-slate-900 text-white rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
+      
+      {/* Estilos para impresión del comprobante */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .no-print { display: none !important; }
+          .fixed { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; background: white !important; padding: 0 !important; }
+          .bg-slate-900\\/60 { background: white !important; backdrop-filter: none !important; }
+          .shadow-2xl { shadow: none !important; }
+          .animate-in { animation: none !important; }
+          .fixed.inset-0.z-\\[150\\].flex.items-center.justify-center { 
+            visibility: visible; 
+            position: absolute !important;
+            display: block !important;
+          }
+          .fixed.inset-0.z-\\[150\\] * { visibility: visible; }
+          .rounded-\\[40px\\] { border-radius: 0 !important; border: none !important; }
+          .max-w-md { max-width: 100% !important; }
+          .p-6, .p-8 { padding: 20px !important; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -389,15 +474,15 @@ const CancelCampaignModal = ({
 
           <div className="space-y-3">
             <button 
-              onClick={onConfirm}
-              disabled={loading || (hasDonations && !activeCheck)}
+              onClick={onConfirm} 
+              disabled={loading || (hasDonations && !activeCheck)} 
               className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-rose-700 shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : 'Confirmar Cancelación'}
             </button>
             <button 
-              onClick={onClose}
-              disabled={loading}
+              onClick={onClose} 
+              disabled={loading} 
               className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
             >
               No, volver atrás
@@ -422,13 +507,13 @@ const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm
         </p>
         <div className="space-y-3">
           <button 
-            onClick={onConfirm}
+            onClick={onConfirm} 
             className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
           >
             Configurar ahora
           </button>
           <button 
-            onClick={onClose}
+            onClick={onClose} 
             className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
           >
             Quizás más tarde
@@ -468,15 +553,15 @@ const WithdrawalConfirmModal = ({
 
         <div className="space-y-3">
           <button 
-            onClick={onConfirm}
-            disabled={loading}
+            onClick={onConfirm} 
+            disabled={loading} 
             className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="animate-spin" size={18} /> : <><Check size={18} /> Solicitar Retiro</>}
           </button>
           <button 
-            onClick={onClose}
-            disabled={loading}
+            onClick={onClose} 
+            disabled={loading} 
             className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
           >
             Cancelar
@@ -499,7 +584,7 @@ const WithdrawalSuccessModal = ({ onClose }: { onClose: () => void }) => (
           Hemos recibido tu solicitud de retiro. Nuestro equipo de finanzas procesará la transferencia en un plazo de 48 a 72 horas hábiles.
         </p>
         <button 
-          onClick={onClose}
+          onClick={onClose} 
           className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
         >
           Entendido
@@ -913,7 +998,7 @@ const Dashboard: React.FC = () => {
         <ActionConfirmModal 
           title={confirmModal.title} 
           desc={confirmModal.desc} 
-          variant={confirmModal.variant}
+          variant={confirmModal.variant} 
           onConfirm={confirmModal.onConfirm} 
           onCancel={() => setConfirmModal(null)} 
         />
@@ -1001,7 +1086,7 @@ const Dashboard: React.FC = () => {
                       
                       {c.estado === 'cancelada' ? (
                         <button 
-                          onClick={() => setSelectedCampaignForRefund(c)}
+                          onClick={() => setSelectedCampaignForRefund(c)} 
                           className="flex items-center gap-1.5 text-violet-600 hover:text-violet-700 font-black transition-colors"
                         >
                           <RefreshCw size={10} className="animate-spin-slow" />
@@ -1020,8 +1105,8 @@ const Dashboard: React.FC = () => {
                         <Link to={`/campana/${c.id}/editar`} className="w-11 h-11 bg-violet-50 text-violet-600 hover:bg-violet-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"><Edit3 size={20} /></Link>
                         
                         <button 
-                          onClick={() => handleTogglePause(c)}
-                          disabled={actionLoading === c.id}
+                          onClick={() => handleTogglePause(c)} 
+                          disabled={actionLoading === c.id} 
                           className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-sm ${
                             c.estado === 'pausada' 
                             ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white' 
@@ -1033,7 +1118,7 @@ const Dashboard: React.FC = () => {
                         </button>
 
                         <button 
-                          onClick={() => handleCancelClick(c)}
+                          onClick={() => handleCancelClick(c)} 
                           className="w-11 h-11 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl flex items-center justify-center transition-all shadow-sm"
                           title="Cancelar Campaña"
                         >
@@ -1059,7 +1144,7 @@ const Dashboard: React.FC = () => {
                   <div key={don.id} className="bg-white p-4 rounded-[32px] border border-slate-100 flex flex-col md:flex-row items-center gap-6 group hover:shadow-lg transition-all duration-300">
                     <div className="w-full md:w-32 h-20 rounded-[24px] overflow-hidden shrink-0 shadow-sm"><img src={don.campaign?.imagenUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" /></div>
                     <div className="flex-grow w-full space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Donaste a</p><h4 className="text-lg font-black text-slate-900 leading-tight group-hover:text-violet-600 transition-colors">{don.campaign?.titulo || 'Campaña'}</h4><div className="flex items-center gap-3"><div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold uppercase tracking-widest"><Calendar size={12} className="text-slate-300" />{new Date(don.fecha).toLocaleDateString('es-CL')}</div><div className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100">EXITOSO</div></div></div>
-                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${don.amountTotal.toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
+                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end pr-2"><div className="text-right"><p className="text-3xl font-black text-slate-900 tracking-tighter">${(don.amountCause || 0).toLocaleString('es-CL')}</p><p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">Aporte Solidario</p></div><div className="flex gap-2"><button onClick={() => setSelectedDonationForReceipt(don)} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-xl flex items-center justify-center transition-all shadow-sm"><FileText size={20} /></button><Link to={`/campana/${don.campaignId}`} className="w-11 h-11 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl flex items-center justify-center transition-all shadow-sm"><Eye size={20} /></Link></div></div>
                   </div>
                 ))}
               </div>
@@ -1123,8 +1208,8 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="w-full md:w-auto">
                       <button 
-                        onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)}
-                        disabled={actionLoading === c.id}
+                        onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
+                        disabled={actionLoading === c.id} 
                         className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
@@ -1211,7 +1296,7 @@ const Dashboard: React.FC = () => {
                           placeholder="12.345.678-9" 
                           value={bankForm.holderRut} 
                           onChange={e => setBankForm({...bankForm, holderRut: formatRut(e.target.value)})} 
-                          onBlur={handleBankRutBlur}
+                          onBlur={handleBankRutBlur} 
                           required 
                         />
                         {bankRutError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankRutError}</p>}
@@ -1255,7 +1340,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <button 
-                      onClick={handleToggle2FA}
+                      onClick={handleToggle2FA} 
                       className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none ${profile?.two_factor_enabled ? 'bg-violet-600' : 'bg-slate-300'}`}
                     >
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all ${profile?.two_factor_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -1277,7 +1362,7 @@ const Dashboard: React.FC = () => {
                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Registrado</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.full_name || 'Sin registro'}</div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.region || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.city || 'Sin registro'}</div></div></div>
-                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-400 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
+                     <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
                      <div className="pt-6 border-t border-slate-50">
                         <button 
                           onClick={() => setConfirmModal({
@@ -1306,7 +1391,7 @@ const Dashboard: React.FC = () => {
                               className={`w-full p-6 bg-slate-50 border-2 ${rutError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
                               value={profileForm.rut} 
                               onChange={e => setProfileForm({...profileForm, rut: formatRut(e.target.value)})} 
-                              onBlur={handleRutBlur}
+                              onBlur={handleRutBlur} 
                               placeholder="12.345.678-9" 
                             />
                             {rutError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{rutError}</p>}

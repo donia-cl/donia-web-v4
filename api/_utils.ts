@@ -54,17 +54,19 @@ export const logger = {
 };
 
 export function getCanonicalBackendBaseUrl(req?: any): string {
-  // En Vercel/Proxies, x-forwarded-host contiene el dominio real (ej: staging.donia.cl)
+  // 1. Priorizar cabeceras de proxy de Vercel/Ambiente real
   const host = req?.headers?.['x-forwarded-host'] || req?.headers?.host;
   
   if (host) {
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const protocol = req.headers?.['x-forwarded-proto'] || 'https';
     return `${protocol}://${host}`;
   }
   
+  // 2. Fallbacks de variables de entorno configuradas
   if (process.env.CANONICAL_BASE_URL) return process.env.CANONICAL_BASE_URL.replace(/\/$/, '');
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   
+  // 3. Dominio final de producción
   return 'https://donia.cl';
 }
 
