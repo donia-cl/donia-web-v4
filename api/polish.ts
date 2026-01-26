@@ -1,5 +1,4 @@
 
-import { GoogleGenAI } from "@google/genai";
 import { Validator, logger, checkRateLimit } from './_utils.js';
 
 export default async function handler(req: any, res: any) {
@@ -19,31 +18,52 @@ export default async function handler(req: any, res: any) {
     Validator.required(story, 'story');
     Validator.string(story, 20, 'story');
 
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      logger.error('AI_CONFIG_MISSING', new Error('API_KEY no configurada en el entorno'));
+      logger.error('AI_CONFIG_MISSING', new Error('OPENAI_API_KEY no configurada en Vercel'));
       return res.status(503).json({ error: 'El servicio de IA no está disponible en este momento.' });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    logger.info('AI_POLISH_REQUEST_OPENAI', { ip, storyLength: story.length });
 
-    logger.info('AI_POLISH_REQUEST_GEMINI', { ip, storyLength: story.length });
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Mejora el siguiente texto para una campaña solidaria en Donia:\n\n"${story}"`,
-      config: {
-        systemInstruction: "Eres un experto en redacción para crowdfunding solidario. Tu única función es mejorar el texto del usuario para que sea más claro, empático y profesional, manteniendo un tono chileno cercano y honesto. REGLAS CRÍTICAS: 1. NO inventes hechos ni nombres. 2. NO exageres ni uses lenguaje melodramático falso. 3. MANTÉN la veracidad de la historia original. 4. SOLO entrega el texto mejorado, sin introducciones ni comentarios.",
-        temperature: 0.7,
+    // Llamada directa a OpenAI mediante fetch para evitar dependencias extras
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un experto en redacción para crowdfunding solidario. Tu única función es mejorar el texto del usuario para que sea más claro, empático y profesional, manteniendo un tono chileno cercano y honesto. REGLAS CRÍTICAS: 1. NO inventes hechos ni nombres. 2. NO exageres ni uses lenguaje melodramático falso. 3. MANTÉN la veracidad de la historia original. 4. SOLO entrega el texto mejorado, sin introducciones ni comentarios explicativos.'
+          },
+          {
+            role: 'user',
+            content: `Mejora el siguiente texto para una campaña solidaria en Donia:\n\n"${story}"`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      })
     });
 
-    const polishedText = response.text;
+    if (!response.ok) {
+      const errorData = await response.json();
+      logger.error('OPENAI_API_ERROR', errorData);
+      throw new Error('Error en la comunicación con OpenAI');
+    }
+
+    const data = await response.json();
+    const polishedText = data.choices?.[0]?.message?.content;
 
     if (!polishedText) {
       throw new Error('La IA devolvió una respuesta vacía.');
     }
 
+    logger.info('AI_POLISH_SUCCESS', { newLength: polishedText.length });
     return res.status(200).json({ text: polishedText.trim() });
 
   } catch (error: any) {

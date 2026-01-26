@@ -18,6 +18,7 @@ export default async function handler(req: any, res: any) {
     supabaseUrl: supabaseUrl,
     supabaseKey: supabaseKey,
     mpPublicKey: mpPublicKey, 
-    aiEnabled: !!process.env.API_KEY
+    // Ahora verifica tanto la clave antigua de Gemini como la nueva de OpenAI
+    aiEnabled: !!(process.env.API_KEY || process.env.OPENAI_API_KEY)
   });
 }
