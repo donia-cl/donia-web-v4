@@ -18,15 +18,16 @@ export default async function handler(req: any, res: any) {
     Validator.required(story, 'story');
     Validator.string(story, 20, 'story');
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Sanitizamos la clave por si tiene espacios en la configuración de Vercel
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
       logger.error('AI_CONFIG_MISSING', new Error('OPENAI_API_KEY no configurada en Vercel'));
-      return res.status(503).json({ error: 'El servicio de IA no está disponible en este momento.' });
+      return res.status(503).json({ error: 'El servicio de IA no está configurado correctamente.' });
     }
 
     logger.info('AI_POLISH_REQUEST_OPENAI', { ip, storyLength: story.length });
 
-    // Llamada directa a OpenAI mediante fetch para evitar dependencias extras
+    // Llamada directa a OpenAI mediante fetch
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -46,21 +47,36 @@ export default async function handler(req: any, res: any) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 1500
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      logger.error('OPENAI_API_ERROR', errorData);
-      throw new Error('Error en la comunicación con OpenAI');
+      // OpenAI devuelve el error en errorData.error.message
+      const errorMessage = errorData?.error?.message || 'Error desconocido en OpenAI';
+      const errorCode = errorData?.error?.code || 'no_code';
+      
+      logger.error('OPENAI_API_ERROR', new Error(errorMessage), { 
+        status: response.status, 
+        code: errorCode 
+      });
+
+      if (response.status === 429) {
+        throw new Error('Se ha excedido el límite de uso de la IA. Por favor, intenta más tarde.');
+      }
+      if (response.status === 401) {
+        throw new Error('Error de autenticación con el servicio de IA. Contacta a soporte.');
+      }
+      
+      throw new Error(`Error en la comunicación con OpenAI: ${errorMessage}`);
     }
 
     const data = await response.json();
     const polishedText = data.choices?.[0]?.message?.content;
 
     if (!polishedText) {
-      throw new Error('La IA devolvió una respuesta vacía.');
+      throw new Error('La IA devolvió una respuesta vacía o mal formateada.');
     }
 
     logger.info('AI_POLISH_SUCCESS', { newLength: polishedText.length });
@@ -69,9 +85,15 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     logger.error('AI_POLISH_FATAL_ERROR', error);
     
-    const clientMessage = error.message.includes('Demasiadas solicitudes') 
-      ? 'Has realizado demasiadas solicitudes. Por favor, espera un minuto.' 
-      : 'Hubo un problema al procesar tu historia con la IA. Por favor, inténtalo de nuevo.';
+    let clientMessage = 'Hubo un problema al procesar tu historia con la IA. Por favor, inténtalo de nuevo.';
+    
+    if (error.message.includes('Demasiadas solicitudes')) {
+      clientMessage = error.message;
+    } else if (error.message.includes('límite de uso')) {
+      clientMessage = error.message;
+    } else if (error.message.includes('autenticación')) {
+      clientMessage = 'El servicio de IA tiene un problema de configuración. Intenta más tarde.';
+    }
 
     return res.status(500).json({ error: clientMessage });
   }
