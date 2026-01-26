@@ -72,6 +72,9 @@ const Auth: React.FC = () => {
       const result = await resp.json();
       if (!result.success) throw new Error(result.error);
       
+      // MARCAR COMO VERIFICADO: Esto evita que el initializeAuth (F5) nos vuelva a bloquear
+      sessionStorage.setItem('donia_2fa_verified', 'true');
+      
       // Código correcto: Liberamos el bloqueo en el contexto global
       set2FAWaiting(false);
       
@@ -226,7 +229,6 @@ const Auth: React.FC = () => {
   }
 
   if (isRecoveryMode) {
-    // ... (sin cambios en recuperación de contraseña)
     return (
       <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-slate-50/30">
         <div className="max-w-md w-full bg-white p-8 md:p-12 rounded-[40px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-300">
@@ -285,7 +287,6 @@ const Auth: React.FC = () => {
   }
 
   if (isRegistered) {
-    // ... (sin cambios en registro exitoso)
     return (
       <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-slate-50/30">
         <div className="max-w-md w-full bg-white p-10 rounded-[40px] shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-300">

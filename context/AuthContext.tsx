@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Inicializamos el estado desde sessionStorage para mantener el bloqueo en F5
+  // Mantenemos la referencia del lock para la UI, pero initializeAuth decidirá por perfil
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -53,24 +53,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Cargar sesión inicial
+        // 1. CARGAR SESIÓN INICIAL (F5 o Redirect de Google)
         const { data: { session } } = await client.auth.getSession();
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
           setInternalUser(session.user);
           setProfile(p);
           
-          // Si el perfil tiene 2FA y la sesión está bloqueada visualmente
-          if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_lock') === 'true') {
-            setUser(null);
+          // REGLA DE ORO: Si tiene 2FA habilitado, NUNCA exponer el usuario hasta verificar
+          // El lock de sessionStorage solo sirve para saber si ya autorizamos en este tab
+          if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_verified') !== 'true') {
+            setUser(null); // App bloqueada
+            set2FAWaitingStatus(true);
           } else {
-            setUser(session.user);
+            setUser(session.user); // App desbloqueada
           }
         }
         
         if (mountedRef.current) setLoading(false);
 
-        // ESCUCHA GLOBAL DE CAMBIOS DE AUTH (Aquí es donde capturamos el login de Google)
+        // 2. ESCUCHA GLOBAL (Captura logins en tiempo real)
         const { data } = (client.auth as any).onAuthStateChange(async (event, session) => {
           if (!mountedRef.current || isSigningOut.current) return;
           
@@ -82,32 +84,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setInternalUser(currentUser);
               setProfile(p);
 
-              // REGLA CRÍTICA DE SEGURIDAD:
-              // Si es un inicio de sesión nuevo y el usuario tiene 2FA activado
-              if (event === 'SIGNED_IN' && p?.two_factor_enabled) {
-                // Bloqueamos el acceso global si no se ha validado aún
-                if (sessionStorage.getItem('donia_2fa_lock') !== 'true') {
-                   set2FAWaitingStatus(true);
-                   setUser(null); // No exponemos el usuario a la app hasta el OTP
-                   
-                   // Disparamos el envío del código OTP automáticamente
-                   try {
-                     await fetch('/api/security-otp', {
-                       method: 'POST',
-                       headers: { 'Content-Type': 'application/json' },
-                       body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
-                     });
-                   } catch (otpErr) {
-                     console.error("Error enviando OTP automático:", otpErr);
-                   }
-                } else {
-                   setUser(null);
+              if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_verified') !== 'true') {
+                setUser(null);
+                set2FAWaitingStatus(true);
+                
+                // Disparar el envío del código automáticamente para OAuth (Google)
+                // Usamos un pequeño delay o comprobamos para no duplicar si viene de Password Login
+                try {
+                  await fetch('/api/security-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
+                  });
+                } catch (otpErr) {
+                  console.error("Error enviando OTP automático:", otpErr);
                 }
               } else {
-                // Usuario sin 2FA o ya validado
-                if (sessionStorage.getItem('donia_2fa_lock') !== 'true') {
-                  setUser(currentUser);
-                }
+                setUser(currentUser);
+                set2FAWaitingStatus(false);
               }
             }
           }
@@ -117,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setInternalUser(null);
             setProfile(null);
             set2FAWaitingStatus(false);
+            sessionStorage.removeItem('donia_2fa_verified');
           }
         });
 
@@ -145,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInternalUser(null);
       setProfile(null);
       set2FAWaitingStatus(false);
+      sessionStorage.removeItem('donia_2fa_verified');
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {
