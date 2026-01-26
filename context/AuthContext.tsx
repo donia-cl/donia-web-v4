@@ -6,7 +6,7 @@ import { Profile } from '../types';
 
 interface AuthContextType {
   user: any | null;
-  internalUser: any | null; // Usuario real de Supabase, disponible incluso en bloqueo 2FA
+  internalUser: any | null;
   profile: Profile | null;
   setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
   loading: boolean;
@@ -24,7 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Mantenemos la referencia del lock para la UI, pero initializeAuth decidirá por perfil
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -32,11 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
+  // CANDADO: Evita que se disparen múltiples correos al mismo tiempo por eventos repetidos de Supabase
+  const otpProcessingRef = useRef<string | null>(null);
 
   const set2FAWaitingStatus = (waiting: boolean) => {
     setIs2FAWaiting(waiting);
     if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
-    else sessionStorage.removeItem('donia_2fa_lock');
+    else {
+      sessionStorage.removeItem('donia_2fa_lock');
+      otpProcessingRef.current = null; // Liberamos el candado al terminar el flujo
+    }
   };
 
   useEffect(() => {
@@ -53,26 +57,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // 1. CARGAR SESIÓN INICIAL (F5 o Redirect de Google)
         const { data: { session } } = await client.auth.getSession();
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
           setInternalUser(session.user);
           setProfile(p);
           
-          // REGLA DE ORO: Si tiene 2FA habilitado, NUNCA exponer el usuario hasta verificar
-          // El lock de sessionStorage solo sirve para saber si ya autorizamos en este tab
           if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_verified') !== 'true') {
-            setUser(null); // App bloqueada
+            setUser(null);
             set2FAWaitingStatus(true);
           } else {
-            setUser(session.user); // App desbloqueada
+            setUser(session.user);
           }
         }
         
         if (mountedRef.current) setLoading(false);
 
-        // 2. ESCUCHA GLOBAL (Captura logins en tiempo real)
         const { data } = (client.auth as any).onAuthStateChange(async (event, session) => {
           if (!mountedRef.current || isSigningOut.current) return;
           
@@ -84,20 +84,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setInternalUser(currentUser);
               setProfile(p);
 
-              if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_verified') !== 'true') {
-                setUser(null);
+              const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
+
+              if (p?.two_factor_enabled && !isVerifiedInSession) {
                 set2FAWaitingStatus(true);
+                setUser(null);
                 
-                // Disparar el envío del código automáticamente para OAuth (Google)
-                // Usamos un pequeño delay o comprobamos para no duplicar si viene de Password Login
-                try {
-                  await fetch('/api/security-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
-                  });
-                } catch (otpErr) {
-                  console.error("Error enviando OTP automático:", otpErr);
+                // CONTROL DE FLUJO: Solo enviar OTP si no hemos enviado uno para este ID de usuario en este ciclo
+                if (otpProcessingRef.current !== currentUser.id) {
+                  otpProcessingRef.current = currentUser.id;
+                  
+                  try {
+                    await fetch('/api/security-otp', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
+                    });
+                    console.log("[AUTH] OTP enviado automáticamente.");
+                  } catch (otpErr) {
+                    console.error("Error enviando OTP:", otpErr);
+                    otpProcessingRef.current = null; // Reintento posible si falló la red
+                  }
                 }
               } else {
                 setUser(currentUser);
@@ -112,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setProfile(null);
             set2FAWaitingStatus(false);
             sessionStorage.removeItem('donia_2fa_verified');
+            otpProcessingRef.current = null;
           }
         });
 
@@ -141,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfile(null);
       set2FAWaitingStatus(false);
       sessionStorage.removeItem('donia_2fa_verified');
+      otpProcessingRef.current = null;
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {
