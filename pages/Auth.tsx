@@ -1,4 +1,5 @@
 
+// Import React to resolve namespace errors for FC and FormEvent
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Heart, RefreshCw, Send, CheckCircle2, ArrowLeft, ShieldCheck, Fingerprint, Key, Sparkles, Check } from 'lucide-react';
@@ -6,7 +7,7 @@ import { AuthService } from '../services/AuthService';
 import { useAuth } from '../context/AuthContext';
 
 const Auth: React.FC = () => {
-  const { is2FAWaiting, set2FAWaiting, signOut, internalUser } = useAuth();
+  const { set2FAWaiting, signOut } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -18,6 +19,7 @@ const Auth: React.FC = () => {
   // Estados para el flujo 2FA
   const [is2FAStep, setIs2FAStep] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [tempUserId, setTempUserId] = useState<string | null>(null);
 
   // Estados para Recuperación de Contraseña
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
@@ -35,15 +37,6 @@ const Auth: React.FC = () => {
     password: '',
     fullName: ''
   });
-
-  // Efecto para sincronizar con el bloqueo global del AuthContext (útil para Google Login)
-  useEffect(() => {
-    if (is2FAWaiting && !is2FAStep) {
-      setIs2FAStep(true);
-      setGoogleLoading(false);
-      setLoading(false);
-    }
-  }, [is2FAWaiting, is2FAStep]);
 
   useEffect(() => {
     const resetLoading = () => {
@@ -65,7 +58,7 @@ const Auth: React.FC = () => {
       const resp = await fetch('/api/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: internalUser?.id, code: twoFactorCode })
+        body: JSON.stringify({ userId: tempUserId, code: twoFactorCode })
       });
       const result = await resp.json();
       if (!result.success) throw new Error(result.error);
@@ -85,6 +78,7 @@ const Auth: React.FC = () => {
   const cancel2FALogin = async () => {
     setLoading(true);
     try {
+      // Si cancela, cerramos la sesión parcial de Supabase para limpiar todo
       await signOut(); 
       setIs2FAStep(false);
       setTwoFactorCode('');
@@ -154,10 +148,29 @@ const Auth: React.FC = () => {
 
     try {
       if (isLogin) {
-        // En el flujo Email/Password, el onAuthStateChange del contexto se encargará 
-        // de detectar el 2FA y activar el modo espera. Solo necesitamos llamar al sign-in.
-        await authService.signIn(formData.email, formData.password);
-        // Si no hay 2FA, el contexto pondrá el usuario y navegaremos vía otro efecto o simplemente el usuario pulsará de nuevo si falla la navegación automática
+        const { user } = await authService.signIn(formData.email, formData.password);
+        
+        // Verificar si tiene 2FA activo en su perfil
+        const profile = await authService.fetchProfile(user.id);
+        if (profile?.two_factor_enabled) {
+          // ACTIVAR BLOQUEO EN EL CONTEXTO GLOBAL INMEDIATAMENTE
+          set2FAWaiting(true);
+
+          // Solicitar envío de OTP de login
+          await fetch('/api/security-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, type: 'login_2fa' })
+          });
+          
+          setTempUserId(user.id);
+          setIs2FAStep(true);
+          setLoading(false);
+          return;
+        }
+
+        const from = (location.state as any)?.from?.pathname || '/dashboard';
+        navigate(from, { replace: true });
       } else {
         await authService.signUp(formData.email, formData.password, formData.fullName);
         setIsRegistered(true);
@@ -207,7 +220,7 @@ const Auth: React.FC = () => {
               <Fingerprint size={40} />
             </div>
             <h1 className="text-3xl font-black text-slate-900 mb-2">Paso de Seguridad</h1>
-            <p className="text-slate-500 font-medium text-sm">Tu cuenta está protegida con verificación adicional. Ingresa el código enviado a <strong className="text-slate-900">{internalUser?.email}</strong>.</p>
+            <p className="text-slate-500 font-medium text-sm">Tu cuenta está protegida. Ingresa el código de 6 dígitos enviado a tu correo.</p>
           </div>
           {error && <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-700 text-xs font-bold"><AlertCircle size={16} />{error}</div>}
           <form onSubmit={handle2FAVerify} className="space-y-6">

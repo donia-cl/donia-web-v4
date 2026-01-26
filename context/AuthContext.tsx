@@ -6,7 +6,6 @@ import { Profile } from '../types';
 
 interface AuthContextType {
   user: any | null;
-  internalUser: any | null; // Usuario real de Supabase, incluso si está bloqueado por 2FA
   profile: Profile | null;
   setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
   loading: boolean;
@@ -20,10 +19,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
-  const [internalUser, setInternalUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Inicializamos el estado desde sessionStorage para mantener el bloqueo en F5
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -52,21 +51,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Cargar sesión inicial
+        // Cargar sesión inicial de forma silenciosa
         const { data: { session } } = await client.auth.getSession();
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
-          setInternalUser(session.user);
+          setUser(session.user);
           setProfile(p);
-          
-          // Si el 2FA está activo en el perfil y no hemos liberado el lock de sesión
-          if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_lock') === 'true') {
-            setUser(null);
-          } else {
-            setUser(session.user);
-          }
         }
-        
         if (mountedRef.current) setLoading(false);
 
         const { data } = (client.auth as any).onAuthStateChange(async (event, session) => {
@@ -76,42 +67,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (currentUser) {
+              // IMPORTANTE: No activamos el bloqueo aquí automáticamente.
+              // El bloqueo solo se activa desde el componente Auth.tsx durante el flujo de login.
+              // Aquí solo actualizamos los datos de identidad.
               const p = await authService.fetchProfile(currentUser.id);
-              setInternalUser(currentUser);
+              setUser(currentUser);
               setProfile(p);
-
-              // LOGICA CRITICA: Si es un login nuevo (SIGNED_IN) y tiene 2FA activado
-              if (event === 'SIGNED_IN' && p?.two_factor_enabled) {
-                // Solo activamos si no veníamos ya de un estado de espera (evitar loops)
-                if (sessionStorage.getItem('donia_2fa_lock') !== 'true') {
-                  set2FAWaitingStatus(true);
-                  setUser(null); // Ocultamos el usuario al resto de la app
-                  
-                  // Disparamos el envío del código automáticamente para el flujo Google
-                  try {
-                    await fetch('/api/security-otp', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
-                    });
-                  } catch (otpErr) {
-                    console.error("Error enviando OTP automático:", otpErr);
-                  }
-                } else {
-                  setUser(null);
-                }
-              } else {
-                // Si no tiene 2FA o ya está verificado
-                if (sessionStorage.getItem('donia_2fa_lock') !== 'true') {
-                  setUser(currentUser);
-                }
-              }
             }
           }
           
           if (event === 'SIGNED_OUT') {
             setUser(null);
-            setInternalUser(null);
             setProfile(null);
             set2FAWaitingStatus(false);
           }
@@ -139,7 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       setUser(null);
-      setInternalUser(null);
       setProfile(null);
       set2FAWaitingStatus(false);
       await authService.signOut();
@@ -150,11 +115,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshProfile = async () => {
-    if (internalUser && mountedRef.current && !isSigningOut.current) {
-      const p = await authService.fetchProfile(internalUser.id);
+    if (user && mountedRef.current && !isSigningOut.current) {
+      const p = await authService.fetchProfile(user.id);
       setProfile(p);
     }
   };
+
+  // El usuario expuesto es null si estamos esperando el 2FA, 
+  // lo que protege las vistas privadas y el Header.
+  const exposedUser = is2FAWaiting ? null : user;
 
   if (loading) {
     return (
@@ -167,8 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      internalUser,
+      user: exposedUser, 
       profile, 
       setProfile, 
       loading, 
