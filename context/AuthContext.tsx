@@ -31,7 +31,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
-  // CANDADO: Evita que se disparen múltiples correos al mismo tiempo por eventos repetidos de Supabase
   const otpProcessingRef = useRef<string | null>(null);
 
   const set2FAWaitingStatus = (waiting: boolean) => {
@@ -39,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
     else {
       sessionStorage.removeItem('donia_2fa_lock');
-      otpProcessingRef.current = null; // Liberamos el candado al terminar el flujo
+      otpProcessingRef.current = null;
     }
   };
 
@@ -63,11 +62,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setInternalUser(session.user);
           setProfile(p);
           
-          if (p?.two_factor_enabled && sessionStorage.getItem('donia_2fa_verified') !== 'true') {
+          const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
+          const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
+
+          // REGLA: 2FA solo para no-Google
+          if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
             set2FAWaitingStatus(true);
           } else {
             setUser(session.user);
+            set2FAWaitingStatus(false);
           }
         }
         
@@ -84,19 +88,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setInternalUser(currentUser);
               setProfile(p);
 
+              const isGoogle = currentUser.app_metadata?.provider === 'google' || currentUser.app_metadata?.providers?.includes('google');
               const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-              if (p?.two_factor_enabled && !isVerifiedInSession) {
+              // REGLA: 2FA solo para no-Google
+              if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
                 set2FAWaitingStatus(true);
                 setUser(null);
                 
-                // CONTROL DE FLUJO: Solo enviar OTP si no hemos enviado uno para este ID de usuario en este ciclo
                 if (otpProcessingRef.current !== currentUser.id) {
                   otpProcessingRef.current = currentUser.id;
-                  
                   try {
-                    // Pasamos el email explícitamente para evitar que la API falle si Supabase
-                    // aún no ha terminado de indexar el usuario en su base de datos de administración
                     await fetch('/api/security-otp', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -106,10 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         email: currentUser.email 
                       })
                     });
-                    console.log("[AUTH] OTP solicitado correctamente.");
                   } catch (otpErr) {
-                    console.error("Error enviando OTP:", otpErr);
-                    otpProcessingRef.current = null; // Reintento posible si falló la red
+                    otpProcessingRef.current = null;
                   }
                 }
               } else {
@@ -132,7 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscription = data.subscription;
 
       } catch (error) {
-        console.error("[AUTH] Error inicialización:", error);
         if (mountedRef.current) setLoading(false);
       }
     };

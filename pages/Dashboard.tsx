@@ -956,7 +956,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handleBankRutBlur = () => {
-    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT inválido.");
+    if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT del titular inválido.");
     else setBankRutError(null);
   };
 
@@ -1319,33 +1319,35 @@ const Dashboard: React.FC = () => {
                      <div className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${profile?.email_verified ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>{isGoogleUser ? 'GOOGLE' : 'VERIFICADO'} <CheckCircle2 size={12} /></div>
                   </div>
                   {!isGoogleUser ? (
-                    <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all duration-300"><div className="flex items-center gap-6"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-400 group-hover:text-violet-600 transition-colors"><Key size={32} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contraseña</p><p className="text-xl font-black text-slate-900 tracking-widest">•••••••••••••</p></div></div><button onClick={() => setShowPasswordModal(true)} className="text-xs font-black text-violet-600 uppercase tracking-[0.2em] hover:underline">Cambiar</button></div>
+                    <>
+                      <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all duration-300"><div className="flex items-center gap-6"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-400 group-hover:text-violet-600 transition-colors"><Key size={32} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contraseña</p><p className="text-xl font-black text-slate-900 tracking-widest">•••••••••••••</p></div></div><button onClick={() => setShowPasswordModal(true)} className="text-xs font-black text-violet-600 uppercase tracking-[0.2em] hover:underline">Cambiar</button></div>
+                      
+                      <div className={`p-8 rounded-[32px] border border-slate-100 flex items-center justify-between transition-all duration-300 ${profile?.two_factor_enabled ? 'bg-violet-50 border-violet-100' : 'bg-slate-50/30'}`}>
+                        <div className="flex items-center gap-6">
+                          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm transition-colors ${profile?.two_factor_enabled ? 'bg-white text-violet-600' : 'bg-white text-slate-300'}`}>
+                            <Fingerprint size={32} />
+                          </div>
+                          <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${profile?.two_factor_enabled ? 'text-violet-500' : 'text-slate-400'}`}>Seguridad en el Inicio de Sesión</p>
+                            <p className={`text-xl font-black ${profile?.two_factor_enabled ? 'text-violet-900' : 'text-slate-400'}`}>
+                              {profile?.two_factor_enabled ? 'Doble Factor (2FA) Activado' : 'Doble Factor (2FA) Desactivado'}
+                            </p>
+                            <p className="text-[10px] font-medium text-slate-400 mt-1 max-w-xs">
+                              {profile?.two_factor_enabled ? 'Se requerirá un código enviado a tu correo al iniciar sesión.' : 'Te recomendamos activar esta opción para proteger tus fondos.'}
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleToggle2FA} 
+                          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none ${profile?.two_factor_enabled ? 'bg-violet-600' : 'bg-slate-300'}`}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all ${profile?.two_factor_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                    </>
                   ) : (
-                    <div className="p-8 bg-violet-50/50 rounded-[32px] border border-violet-100 flex items-center gap-6 animate-in slide-in-from-top-2"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-violet-600"><Info size={32} /></div><div><p className="text-lg font-black text-violet-900 mb-1">Cuenta vinculada con Google</p><p className="text-sm text-violet-700/70 font-medium leading-relaxed max-w-lg">Tu seguridad es gestionada externamente por Google.</p></div></div>
+                    <div className="p-8 bg-violet-50/50 rounded-[32px] border border-violet-100 flex items-center gap-6 animate-in slide-in-from-top-2"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-violet-600"><Info size={32} /></div><div><p className="text-lg font-black text-violet-900 mb-1">Cuenta vinculada con Google</p><p className="text-sm text-violet-700/70 font-medium leading-relaxed max-w-lg">Tu seguridad es gestionada externamente por Google. Las funciones de contraseña y 2FA local están deshabilitadas.</p></div></div>
                   )}
-                  
-                  <div className={`p-8 rounded-[32px] border border-slate-100 flex items-center justify-between transition-all duration-300 ${profile?.two_factor_enabled ? 'bg-violet-50 border-violet-100' : 'bg-slate-50/30'}`}>
-                    <div className="flex items-center gap-6">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm transition-colors ${profile?.two_factor_enabled ? 'bg-white text-violet-600' : 'bg-white text-slate-300'}`}>
-                        <Fingerprint size={32} />
-                      </div>
-                      <div>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${profile?.two_factor_enabled ? 'text-violet-500' : 'text-slate-400'}`}>Seguridad en el Inicio de Sesión</p>
-                        <p className={`text-xl font-black ${profile?.two_factor_enabled ? 'text-violet-900' : 'text-slate-400'}`}>
-                          {profile?.two_factor_enabled ? 'Doble Factor (2FA) Activado' : 'Doble Factor (2FA) Desactivado'}
-                        </p>
-                        <p className="text-[10px] font-medium text-slate-400 mt-1 max-w-xs">
-                          {profile?.two_factor_enabled ? 'Se requerirá un código enviado a tu correo al iniciar sesión.' : 'Te recomendamos activar esta opción para proteger tus fondos.'}
-                        </p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleToggle2FA} 
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none ${profile?.two_factor_enabled ? 'bg-violet-600' : 'bg-slate-300'}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all ${profile?.two_factor_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
                </div>
                <div className="mt-14 pt-10 border-t border-slate-50"><div className="bg-rose-50/50 rounded-[32px] border border-rose-100 p-8 shadow-sm relative overflow-hidden group"><div className="flex items-start gap-6 relative z-10"><div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0"><ShieldAlert size={32} /></div><div className="space-y-4"><div><h4 className="text-2xl font-black text-rose-900 mb-1">Zona Crítica</h4><p className="text-base text-rose-700 font-medium leading-relaxed">Si sospechas acceso no autorizado, solicita el cierre global.</p></div><button onClick={() => setNotification({ title: "Acción en desarrollo", desc: "El cierre global de sesiones es una función administrativa. Nuestro equipo de soporte procesará tu solicitud en breve si confirmas mediante correo.", type: "info" })} className="text-sm font-black text-rose-600 uppercase tracking-[0.15em] hover:underline">Solicitar cierre de sesiones globales</button></div></div></div></div>
              </div>
