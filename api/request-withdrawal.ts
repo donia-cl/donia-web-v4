@@ -96,8 +96,10 @@ export default async function handler(req: any, res: any) {
     // 8. Registro en Zoho Desk
     try {
       const description = `SOLICITUD RETIRO\nBeneficiario: ${profile.full_name}\nRUT: ${profile.rut}\nBanco: ${bankAccount.bank_name}\nCuenta: ${bankAccount.account_type} - ${bankAccount.account_number}\nCampaña: ${campaign.titulo}\nMonto: $${Number(monto).toLocaleString('es-CL')}`;
+      
+      // CAMBIO: Se elimina el emoji y se usa el formato solicitado [RETIRO] $Monto - RUT: XXXXXXXX-X
       await ZohoService.createTicket({
-        subject: `💰 RETIRO: $${Number(monto).toLocaleString('es-CL')} - ${profile.full_name}`,
+        subject: `[RETIRO] $${Number(monto).toLocaleString('es-CL')} - RUT: ${profile.rut}`,
         contactName: profile.full_name,
         email: authUser?.user?.email || 'soporte@donia.cl',
         description: description,
