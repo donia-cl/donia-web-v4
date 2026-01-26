@@ -95,12 +95,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   otpProcessingRef.current = currentUser.id;
                   
                   try {
+                    // Pasamos el email explícitamente para evitar que la API falle si Supabase
+                    // aún no ha terminado de indexar el usuario en su base de datos de administración
                     await fetch('/api/security-otp', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ userId: currentUser.id, type: 'login_2fa' })
+                      body: JSON.stringify({ 
+                        userId: currentUser.id, 
+                        type: 'login_2fa',
+                        email: currentUser.email 
+                      })
                     });
-                    console.log("[AUTH] OTP enviado automáticamente.");
+                    console.log("[AUTH] OTP solicitado correctamente.");
                   } catch (otpErr) {
                     console.error("Error enviando OTP:", otpErr);
                     otpProcessingRef.current = null; // Reintento posible si falló la red
