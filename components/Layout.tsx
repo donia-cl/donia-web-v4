@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck, MailWarning, RefreshCw, Check } from 'lucide-react';
+import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck, MailWarning, RefreshCw, Check, Sparkles, UserCircle } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { useAuth } from '../context/AuthContext';
 import { AuthService } from '../services/AuthService';
@@ -59,31 +59,54 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Mi Perfil';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
-  // LÓGICA DE VERIFICACIÓN UNIFICADA: 
-  // Solo ocultamos el banner si es Google o si is_verified es explícitamente TRUE.
+  // LÓGICA DE VERIFICACIÓN Y PERFIL:
   const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
-  const showVerifyBanner = user && profile && profile.is_verified !== true && !isGoogle;
+  const isVerified = profile?.is_verified === true || isGoogle;
+  const isProfileComplete = profile?.rut && profile?.phone && profile?.region && profile?.city;
+  
+  const showBanner = user && profile && (!isVerified || !isProfileComplete);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {showVerifyBanner && (
-        <div className="bg-amber-500 text-white py-2.5 px-4 animate-in slide-in-from-top duration-500">
-           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
-              <div className="flex items-center gap-2">
-                <MailWarning size={16} />
-                <span className="text-xs font-black uppercase tracking-widest">Cuenta pendiente de activación</span>
+      {showBanner && (
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 text-white py-3 px-4 animate-in slide-in-from-top duration-500 shadow-lg relative z-[60]">
+           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
+                  <Sparkles size={16} className="text-violet-200" />
+                </div>
+                <div className="text-sm md:text-base">
+                  <span className="font-black uppercase tracking-widest text-[10px] block opacity-70 mb-0.5">Acciones pendientes</span>
+                  <p className="font-bold leading-tight">
+                    {!isVerified && !isProfileComplete ? (
+                      <>Debes verificar tu correo y completar tu perfil para publicar.</>
+                    ) : !isVerified ? (
+                      <>Debes verificar tu correo para activar tu cuenta.</>
+                    ) : (
+                      <>Debes completar tus datos en la pestaña de Perfil.</>
+                    )}
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] font-bold opacity-90">
-                Revisa tu correo para validar tu identidad y poder publicar campañas.
-              </p>
-              <button 
-                onClick={handleResendEmail}
-                disabled={resending || resendSent}
-                className="bg-white/20 hover:bg-white/30 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/20"
-              >
-                {resending ? <RefreshCw size={12} className="animate-spin" /> : resendSent ? <Check size={12} /> : <RefreshCw size={12} />}
-                {resendSent ? 'Correo enviado' : 'Reenviar activación'}
-              </button>
+              
+              <div className="flex items-center gap-2">
+                {!isVerified && !isGoogle && (
+                  <button 
+                    onClick={handleResendEmail}
+                    disabled={resending || resendSent}
+                    className="bg-white/20 hover:bg-white/30 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 active:scale-95 disabled:opacity-50"
+                  >
+                    {resending ? <RefreshCw size={12} className="animate-spin" /> : resendSent ? <Check size={12} /> : <RefreshCw size={12} />}
+                    {resendSent ? 'Enviado' : 'Reenviar Activación'}
+                  </button>
+                )}
+                <button 
+                  onClick={() => navigate('/dashboard?tab=' + (!isVerified ? 'seguridad' : 'perfil'))}
+                  className="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl active:scale-95"
+                >
+                  Ir ahora <ChevronDown size={12} className="-rotate-90" />
+                </button>
+              </div>
            </div>
         </div>
       )}

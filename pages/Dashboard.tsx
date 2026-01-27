@@ -1248,7 +1248,7 @@ const Dashboard: React.FC = () => {
                       <button 
                         onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
                         disabled={actionLoading === c.id} 
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                         Cobrar Fondos
@@ -1351,37 +1351,6 @@ const Dashboard: React.FC = () => {
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
              <div className="bg-white rounded-[48px] border border-slate-100 p-10 md:p-14 shadow-2xl shadow-slate-100 relative overflow-hidden">
                
-               {/* BANNER DE ACCIÓN REQUERIDA (Colores Donia - Violetas) */}
-               {(!isVerified || !isProfileComplete) && (
-                 <div className="mb-10 bg-violet-50 border border-violet-100 p-8 rounded-[32px] flex items-start gap-6 animate-in slide-in-from-top-4">
-                    <div className="w-14 h-14 bg-white text-violet-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-                       <Sparkles size={28} />
-                    </div>
-                    <div className="flex-grow">
-                       <h4 className="text-violet-900 font-black uppercase text-xs tracking-widest mb-1">Acciones Requeridas</h4>
-                       <p className="text-violet-800 text-sm font-medium leading-relaxed">
-                          Para garantizar la transparencia y seguridad de tus recaudaciones, necesitas completar lo siguiente:
-                          <span className={`block mt-2 font-black ${!isVerified ? 'text-rose-600' : 'text-emerald-600 opacity-60'}`}>
-                            • {!isVerified ? 'Debes verificar tu correo electrónico.' : 'Correo electrónico verificado.'}
-                          </span>
-                          <span className={`block font-black ${!isProfileComplete ? 'text-rose-600' : 'text-emerald-600 opacity-60'}`}>
-                            • {!isProfileComplete ? 'Debes completar tu perfil (RUT y Teléfono).' : 'Perfil completo.'}
-                          </span>
-                       </p>
-                       {!isVerified && (
-                          <button 
-                            onClick={handleResendEmail}
-                            disabled={resendingEmail || resendSent}
-                            className="mt-5 bg-violet-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                          >
-                             {resendingEmail ? <Loader2 className="animate-spin" size={12} /> : <RefreshCw size={12} />}
-                             {resendSent ? 'Correo reenviado' : 'Reenviar activación'}
-                          </button>
-                       )}
-                    </div>
-                 </div>
-               )}
-
                <div className="mb-12 relative z-10">
                  <h3 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Protección de Cuenta</h3>
                  <p className="text-slate-500 font-medium text-lg">Gestiona la seguridad de tu acceso y las sesiones activas.</p>
