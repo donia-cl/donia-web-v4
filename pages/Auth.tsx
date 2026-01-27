@@ -1,4 +1,3 @@
-
 // Import React to resolve namespace errors for FC and FormEvent
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
@@ -7,7 +6,7 @@ import { AuthService } from '../services/AuthService';
 import { useAuth } from '../context/AuthContext';
 
 const Auth: React.FC = () => {
-  const { is2FAWaiting, set2FAWaiting, signOut, internalUser } = useAuth();
+  const { user, is2FAWaiting, set2FAWaiting, signOut, internalUser } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -36,6 +35,15 @@ const Auth: React.FC = () => {
     password: '',
     fullName: ''
   });
+
+  // REDIRECCIÓN AUTOMÁTICA TRAS LOGIN EXITOSO
+  // Este efecto detecta cuando el usuario ya está en el contexto y no hay 2FA pendiente
+  useEffect(() => {
+    if (user && !is2FAWaiting) {
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [user, is2FAWaiting, navigate, location.state]);
 
   // EFECTO CRÍTICO: Si el contexto global dice que estamos esperando 2FA, 
   // activamos la vista de OTP automáticamente (incluso tras redirect de Google)
@@ -164,7 +172,8 @@ const Auth: React.FC = () => {
         // de detectar el 2FA y activar el modo espera. Solo necesitamos llamar al sign-in.
         await authService.signIn(formData.email, formData.password);
         
-        // Si no hay 2FA, el contexto pondrá el usuario y navegaremos vía este efecto o manualmente si falla la navegación automática
+        // Si no hay 2FA, el contexto pondrá el usuario y el useEffect de arriba navegará.
+        // No llamamos a setLoading(false) aquí para evitar parpadeos si la navegación es rápida.
       } else {
         await authService.signUp(formData.email, formData.password, formData.fullName);
         setIsRegistered(true);
