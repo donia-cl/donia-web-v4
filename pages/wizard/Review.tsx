@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -27,7 +26,8 @@ import {
   Building,
   Heart,
   Handshake,
-  PawPrint
+  PawPrint,
+  MailWarning
 } from 'lucide-react';
 import { useCampaign } from '../../context/CampaignContext';
 import { useAuth } from '../../context/AuthContext';
@@ -132,12 +132,19 @@ const CreateReview: React.FC = () => {
   const [declarations, setDeclarations] = useState({ veraz: false, verificacion: false, pausar: false });
   const service = CampaignService.getInstance();
 
+  const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
+  const isVerified = profile?.email_verified || isGoogle;
+
   const handlePublishClick = () => {
     if (!declarations.veraz || !declarations.verificacion || !declarations.pausar) {
       setError("Debes aceptar todas las declaraciones de compromiso para continuar.");
       return;
     }
     if (!user) { setShowAuthModal(true); } 
+    else if (!isVerified) {
+       setError("Tu correo electrónico no ha sido verificado. Revisa tu bandeja de entrada.");
+       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     else { handleSubmit(); }
   };
 
@@ -186,7 +193,7 @@ const CreateReview: React.FC = () => {
 
   return (
     <>
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); setTimeout(() => handleSubmit(), 500); }} />}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => { setShowAuthModal(false); refreshProfile(); }} />}
       <div className="max-w-4xl mx-auto px-4 py-10">
         <ProgressBar currentStep={4} totalSteps={4} />
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-slate-400 hover:text-violet-600 mb-6 transition-colors font-black text-[10px] uppercase tracking-widest"><ChevronLeft size={14} /> Volver</button>
@@ -195,6 +202,26 @@ const CreateReview: React.FC = () => {
           <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Revisa tu campaña</h1>
           <p className="text-slate-500 font-medium text-sm">Confirma que todo esté correcto antes de lanzar tu historia.</p>
         </div>
+
+        {!isVerified && user && (
+           <div className="bg-amber-50 border border-amber-200 p-6 rounded-[32px] mb-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+                <MailWarning size={28} />
+              </div>
+              <div className="flex-grow">
+                 <h4 className="text-amber-900 font-black uppercase text-xs tracking-widest mb-1">Verificación requerida</h4>
+                 <p className="text-amber-800 text-sm font-medium leading-relaxed">
+                   Debes verificar tu correo electrónico para poder publicar campañas. Hemos enviado un enlace a <strong>{user.email}</strong>.
+                 </p>
+              </div>
+              <button 
+                onClick={() => navigate('/dashboard?tab=seguridad')}
+                className="px-6 py-3 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all"
+              >
+                Verificar ahora
+              </button>
+           </div>
+        )}
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -244,8 +271,19 @@ const CreateReview: React.FC = () => {
             </div>
           </div>
 
+          {error && (
+            <div className="p-5 bg-rose-50 border border-rose-100 rounded-[24px] flex items-center gap-4 text-rose-700 text-sm font-bold animate-in shake duration-300">
+               <AlertCircle size={24} className="shrink-0" />
+               <p>{error}</p>
+            </div>
+          )}
+
           {!isSuccess && (
-            <button onClick={handlePublishClick} disabled={isSubmitting || !allChecked} className={`w-full py-6 rounded-[24px] font-black text-xl transition-all flex items-center justify-center gap-3 shadow-2xl ${isSubmitting || !allChecked ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-violet-600 text-white hover:bg-violet-700 shadow-violet-100'}`}>
+            <button 
+              onClick={handlePublishClick} 
+              disabled={isSubmitting || !allChecked} 
+              className={`w-full py-6 rounded-[24px] font-black text-xl transition-all flex items-center justify-center gap-3 shadow-2xl ${isSubmitting || !allChecked ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-violet-600 text-white hover:bg-violet-700 shadow-violet-100'}`}
+            >
               {isSubmitting ? <><Loader2 className="animate-spin" size={24} /> Publicando...</> : <><Lock size={18} /> <span>{user ? 'Lanzar mi campaña' : 'Ingresar y Publicar'}</span></>}
             </button>
           )}

@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Validator, logger, calculateEffectiveStatus, Mailer } from './_utils.js';
 
@@ -45,10 +44,26 @@ export default async function handler(req: any, res: any) {
       Validator.string(titulo, 5, 'titulo');
       Validator.number(monto, 1000, 'monto');
 
-      const [{ data: profile }, { data: authUser }] = await Promise.all([
-        supabase.from('profiles').select('region, city, full_name').eq('id', owner_id).single(),
-        (supabase.auth as any).admin.getUserById(owner_id)
-      ]);
+      // 1. VALIDACIÓN CRÍTICA: ¿Está verificado?
+      const { data: profile, error: pErr } = await supabase
+        .from('profiles')
+        .select('region, city, full_name, email_verified')
+        .eq('id', owner_id)
+        .single();
+
+      if (pErr || !profile) throw new Error("No se pudo validar tu perfil.");
+
+      // 2. Obtener info de Auth para verificar Google (Fuente de verdad definitiva)
+      const { data: authUser } = await (supabase.auth as any).admin.getUserById(owner_id);
+      const isGoogle = authUser?.user?.app_metadata?.provider === 'google' || authUser?.user?.app_metadata?.providers?.includes('google');
+
+      // Si no es Google y no está marcado como verificado en el perfil, RECHAZAR.
+      if (!profile.email_verified && !isGoogle) {
+        return res.status(403).json({ 
+          success: false, 
+          error: 'Debes verificar tu correo electrónico para publicar campañas.' 
+        });
+      }
 
       const finalCity = profile?.city || '';
       const finalRegion = profile?.region || '';
@@ -72,7 +87,6 @@ export default async function handler(req: any, res: any) {
       
       if (error) throw error;
 
-      // AWAIT PARA NOTIFICACIÓN DE CREACIÓN
       if (authUser?.user?.email) {
         try {
           await Mailer.sendCampaignCreatedNotification(

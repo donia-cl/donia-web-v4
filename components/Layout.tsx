@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck } from 'lucide-react';
+import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck, MailWarning, RefreshCw, Check } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/AuthService';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -12,6 +12,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isWizard = location.pathname.startsWith('/crear');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   
   const service = CampaignService.getInstance();
   const [dbStatus, setDbStatus] = useState<'cloud' | 'local'>('local');
@@ -33,6 +35,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/');
   };
 
+  const handleResendEmail = async () => {
+    if (!user?.email) return;
+    setResending(true);
+    try {
+      await AuthService.getInstance().resendVerificationEmail(user.email);
+      setResendSent(true);
+      setTimeout(() => setResendSent(false), 5000);
+    } catch (e) {
+      alert("Error al reenviar. Intenta más tarde.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   const NavLinks = () => (
     <>
       <Link to="/explorar" onClick={() => setIsMobileMenuOpen(false)} className={`font-bold transition-colors ${location.pathname === '/explorar' ? 'text-violet-600' : 'text-slate-600 hover:text-violet-600'}`}>Explorar</Link>
@@ -43,8 +59,34 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Mi Perfil';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
+  // Mostrar banner si el usuario está logueado pero no verificado y no es de Google
+  const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
+  const showVerifyBanner = user && !profile?.email_verified && !isGoogle;
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      {showVerifyBanner && (
+        <div className="bg-amber-500 text-white py-2.5 px-4 animate-in slide-in-from-top duration-500">
+           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+              <div className="flex items-center gap-2">
+                <MailWarning size={16} />
+                <span className="text-xs font-black uppercase tracking-widest">Cuenta no verificada</span>
+              </div>
+              <p className="text-[11px] font-bold opacity-90">
+                Para publicar campañas y recibir fondos debes validar tu correo electrónico.
+              </p>
+              <button 
+                onClick={handleResendEmail}
+                disabled={resending || resendSent}
+                className="bg-white/20 hover:bg-white/30 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/20"
+              >
+                {resending ? <RefreshCw size={12} className="animate-spin" /> : resendSent ? <Check size={12} /> : <RefreshCw size={12} />}
+                {resendSent ? 'Correo enviado' : 'Reenviar activación'}
+              </button>
+           </div>
+        </div>
+      )}
+
       <header className="border-b border-slate-100 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
