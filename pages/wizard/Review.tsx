@@ -133,7 +133,8 @@ const CreateReview: React.FC = () => {
   const service = CampaignService.getInstance();
 
   const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
-  const isVerified = profile?.email_verified || isGoogle;
+  // Usamos el campo is_verified de la tabla profiles como verdad absoluta
+  const isVerified = profile?.is_verified === true || isGoogle;
 
   const handlePublishClick = () => {
     if (!declarations.veraz || !declarations.verificacion || !declarations.pausar) {
@@ -142,7 +143,7 @@ const CreateReview: React.FC = () => {
     }
     if (!user) { setShowAuthModal(true); } 
     else if (!isVerified) {
-       setError("Tu correo electrónico no ha sido verificado. Revisa tu bandeja de entrada.");
+       setError("Tu cuenta aún no está verificada. Revisa tu correo electrónico para activarla.");
        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     else { handleSubmit(); }

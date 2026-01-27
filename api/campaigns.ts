@@ -44,30 +44,31 @@ export default async function handler(req: any, res: any) {
       Validator.string(titulo, 5, 'titulo');
       Validator.number(monto, 1000, 'monto');
 
-      // 1. VALIDACIÓN CRÍTICA: ¿Está verificado?
+      // 1. VALIDACIÓN CRÍTICA: ¿Está realmente verificado en nuestra tabla pública?
       const { data: profile, error: pErr } = await supabase
         .from('profiles')
-        .select('region, city, full_name, email_verified')
+        .select('id, is_verified')
         .eq('id', owner_id)
         .single();
 
       if (pErr || !profile) throw new Error("No se pudo validar tu perfil.");
 
-      // 2. Obtener info de Auth para verificar Google (Fuente de verdad definitiva)
+      // 2. Obtener info de Auth para verificar Google como excepción
       const { data: authUser } = await (supabase.auth as any).admin.getUserById(owner_id);
       const isGoogle = authUser?.user?.app_metadata?.provider === 'google' || authUser?.user?.app_metadata?.providers?.includes('google');
 
-      // Si no es Google y no está marcado como verificado en el perfil, RECHAZAR.
-      if (!profile.email_verified && !isGoogle) {
+      // Bloqueamos si no es Google Y no está marcado como IS_VERIFIED
+      if (profile.is_verified !== true && !isGoogle) {
         return res.status(403).json({ 
           success: false, 
-          error: 'Debes verificar tu correo electrónico para publicar campañas.' 
+          error: 'Debes verificar tu correo electrónico para poder publicar campañas.' 
         });
       }
 
-      const finalCity = profile?.city || '';
-      const finalRegion = profile?.region || '';
-      const finalLocation = finalCity && finalRegion ? `${finalCity}, ${finalRegion}` : (finalRegion || 'Chile');
+      // ... resto de la lógica de creación ...
+      const finalCity = ''; // Se asume vacío o se puede traer del perfil si es necesario
+      const finalRegion = ''; 
+      const finalLocation = 'Chile';
       
       const duracion = Number(duracionDias || 60);
       const fechaCreacion = new Date();
@@ -78,7 +79,7 @@ export default async function handler(req: any, res: any) {
       const finalPrimary = imagenUrl || (finalGallery.length > 0 ? finalGallery[0] : '');
 
       const { data, error } = await supabase.from('campaigns').insert([{ 
-        titulo, historia, monto: Number(monto), categoria, ubicacion: finalLocation, ciudad: finalCity,
+        titulo, historia, monto: Number(monto), categoria, ubicacion: finalLocation,
         imagen_url: finalPrimary, gallery_urls: finalGallery, beneficiario_nombre: beneficiarioNombre, 
         beneficiario_apellido: beneficiarioApellido, beneficiario_relacion: beneficiarioRelacion || 'Yo mismo',
         owner_id, recaudado: 0, donantes_count: 0, estado: 'activa',
@@ -91,7 +92,7 @@ export default async function handler(req: any, res: any) {
         try {
           await Mailer.sendCampaignCreatedNotification(
             authUser.user.email,
-            profile?.full_name || 'Creador',
+            authUser.user.user_metadata?.full_name || 'Creador',
             titulo,
             data[0].id,
             req
