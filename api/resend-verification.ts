@@ -9,6 +9,9 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Log de versión para confirmar despliegue en Vercel
+  console.log("[DONIA-VER] api/resend-verification.ts v2.1 - listUsers strategy");
+
   try {
     const { email } = req.body;
     logger.info('RESEND_VERIFICATION_API_CALLED', { email });
@@ -24,15 +27,24 @@ export default async function handler(req: any, res: any) {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Buscar usuario por email usando Admin SDK (robusto)
-    const { data: adminUser, error: adminUserError } = await (supabase.auth as any).admin.getUserByEmail(email);
+    // 1. Buscar usuario por email usando listUsers
+    // Acceso seguro al admin sdk
+    const authAdmin = supabase.auth.admin;
+    const { data: adminData, error: adminError } = await authAdmin.listUsers();
 
-    if (adminUserError || !adminUser?.user) {
+    if (adminError) {
+      logger.error('RESEND_VERIFICATION_AUTH_LIST_FAIL', adminError);
+      throw new Error("Error al consultar el servicio de autenticación.");
+    }
+
+    // Buscamos el usuario en la lista devuelta
+    const user = adminData.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
         logger.warn('RESEND_VERIFICATION_USER_NOT_FOUND', { email });
         throw new Error("No existe una cuenta asociada a este correo.");
     }
 
-    const user = adminUser.user;
     logger.info('RESEND_VERIFICATION_USER_LOOKUP_SUCCESS', { userId: user.id, email });
 
     // 2. Obtener nombre del perfil

@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Mailer, logger, Validator, checkRateLimit } from './_utils.js';
 
@@ -10,6 +9,8 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
+  console.log("[DONIA-VER] api/recover-password.ts v2.1 - listUsers strategy");
+
   const { action, email, code, newPassword } = req.body;
   const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -19,20 +20,17 @@ export default async function handler(req: any, res: any) {
 
   try {
     const ip = req.headers['x-forwarded-for'] || 'unknown';
-    checkRateLimit(String(ip), 5, 60000); // 5 intentos por minuto
+    checkRateLimit(String(ip), 5, 60000); 
 
     Validator.email(email);
 
-    // ACCIÓN: SOLICITAR RECUPERACIÓN
     if (action === 'request') {
-      // 1. Buscar usuario por email (Usando Admin SDK)
-      const { data: userData, error: userError } = await (supabase.auth as any).admin.listUsers();
+      // 1. Buscar usuario por email usando listUsers
+      const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
       if (userError) throw userError;
       
       const user = userData.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
       
-      // Si el usuario no existe, por seguridad no lo informamos directamente al atacante, 
-      // pero devolvemos éxito para evitar enumeración de cuentas.
       if (!user) {
         logger.warn('RECOVERY_REQUESTED_FOR_NON_EXISTENT_EMAIL', { email });
         return res.status(200).json({ success: true, message: "Si el correo está registrado, recibirás un código." });
@@ -40,11 +38,9 @@ export default async function handler(req: any, res: any) {
 
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
       
-      // 2. Generar OTP
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); 
 
-      // 3. Guardar OTP
       await supabase.from('security_otps').delete().eq('user_id', user.id).eq('type', 'password_recovery');
       await supabase.from('security_otps').insert([{ 
         user_id: user.id, 
@@ -53,24 +49,20 @@ export default async function handler(req: any, res: any) {
         expires_at: expiresAt 
       }]);
 
-      // 4. Enviar Email
       await Mailer.sendSecurityOTP(email, profile?.full_name || 'Usuario', otpCode, 'recuperación de cuenta');
       
       logger.info('RECOVERY_OTP_SENT', { userId: user.id, email });
       return res.status(200).json({ success: true, message: "Código enviado con éxito." });
     }
 
-    // ACCIÓN: RESETEAR CONTRASEÑA
     if (action === 'reset') {
       Validator.required(code, 'code');
       Validator.string(newPassword, 6, 'newPassword');
 
-      // 1. Buscar el usuario de nuevo
-      const { data: userData } = await (supabase.auth as any).admin.listUsers();
+      const { data: userData } = await supabase.auth.admin.listUsers();
       const user = userData.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
       if (!user) throw new Error("Usuario no encontrado.");
 
-      // 2. Validar OTP
       const { data: otp, error: otpError } = await supabase
         .from('security_otps')
         .select('*')
@@ -85,18 +77,15 @@ export default async function handler(req: any, res: any) {
         throw new Error("El código es inválido o ha expirado.");
       }
 
-      // 3. Ejecutar cambio de contraseña forzado
-      const { error: updateError } = await (supabase.auth as any).admin.updateUserById(user.id, { 
+      const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, { 
         password: newPassword,
-        email_confirm: true // Aprovechamos de confirmar si no lo estaba
+        email_confirm: true 
       });
       
       if (updateError) throw updateError;
 
-      // 4. Marcar OTP como usado
       await supabase.from('security_otps').update({ used_at: new Date().toISOString() }).eq('id', otp.id);
 
-      // 5. Notificar éxito final
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
       await Mailer.sendPasswordChangedNotification(email, profile?.full_name || 'Usuario', req);
 
