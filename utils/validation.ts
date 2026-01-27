@@ -4,7 +4,10 @@ export const cleanRut = (rut: string): string => {
 };
 
 export const formatRut = (rut: string): string => {
-  const clean = cleanRut(rut);
+  let clean = cleanRut(rut);
+  // Un RUT chileno tiene máximo 8 dígitos + 1 verificador = 9 caracteres
+  if (clean.length > 9) clean = clean.slice(0, 9);
+  
   if (clean.length <= 1) return clean;
 
   const body = clean.slice(0, -1);
@@ -57,9 +60,8 @@ export const formatPhone = (phone: string): string => {
   if (clean.length > 0) {
      if (clean.startsWith('56')) {
         const part1 = clean.substring(2, 3); // 9
-        const part2 = clean.substring(3, 7);
-        const part3 = clean.substring(7, 11);
-        return `+56 ${part1} ${part2} ${part3}`.trim();
+        const part2 = clean.substring(3, 11); // Los 8 restantes
+        return `+56 ${part1} ${part2}`.trim();
      }
   }
   return phone;

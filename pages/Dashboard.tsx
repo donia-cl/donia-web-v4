@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -6,8 +5,8 @@ import {
   User as UserIcon, Users, Copy, Eye, Banknote, ArrowDownToLine, Mail, Check, Info, Lock, 
   ArrowRight, HeartHandshake, Save, X, Timer, MapPin, Building, TrendingUp, Shield, Printer,
   ChevronRight, Calendar, Send, FileText, Landmark, AlertCircle, Key, Fingerprint,
-  ShieldAlert, LogOut, ShieldQuestion, Phone, Download, AlertTriangle, XCircle,
-  Pause, Play, RefreshCw, Undo2
+  LogOut, ShieldQuestion, Phone, Download, AlertTriangle, XCircle,
+  Pause, Play, RefreshCw, Undo2, MailWarning, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AuthService, BankAccount } from '../services/AuthService';
@@ -224,7 +223,7 @@ const NotificationModal = ({
           <h3 className="text-2xl font-black text-slate-900 mb-2">{title}</h3>
           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">{desc}</p>
           <button 
-            onClick={onClose}
+            onClick={onClose} 
             className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
           >
             Entendido
@@ -363,7 +362,7 @@ const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, 
               <span className="text-base font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
             </div>
             <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center">
-              <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.15em]">TOTAL PAGADO</span>
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest tracking-[0.15em]">TOTAL PAGADO</span>
               <span className="text-3xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
             </div>
           </div>
@@ -494,35 +493,39 @@ const CancelCampaignModal = ({
   );
 };
 
-const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm: () => void }) => (
-  <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-    <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-      <div className="p-8 text-center">
-        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
-          <Landmark size={32} />
-        </div>
-        <h3 className="text-2xl font-black text-slate-900 mb-2">Faltan datos bancarios</h3>
-        <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
-          Para solicitar un retiro, primero debes configurar la cuenta donde recibiremos el dinero recaudado.
-        </p>
-        <div className="space-y-3">
-          <button 
-            onClick={onConfirm} 
-            className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
-          >
-            Configurar ahora
-          </button>
-          <button 
-            onClick={onClose} 
-            className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
-          >
-            Quizás más tarde
-          </button>
+const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm: () => void }) => {
+  const { loading } = useAuth();
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
+            <Landmark size={32} />
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 mb-2">Faltan datos bancarios</h3>
+          <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
+            Para solicitar un retiro, primero debes configurar la cuenta donde recibiremos el dinero recaudado.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={onConfirm} 
+              className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
+            >
+              Configurar ahora
+            </button>
+            <button 
+              onClick={onClose} 
+              disabled={loading} 
+              className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
+            >
+              Quizás más tarde
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const WithdrawalConfirmModal = ({ 
   onClose, 
@@ -624,7 +627,7 @@ const GenericOTPModal = ({
 
   const labels = {
     bank_account_update: { title: 'Confirmar Cuenta Bancaria', desc: 'Autoriza el cambio de tus datos para retiros.' },
-    phone_update: { title: 'Confirmar Nuevo Teléfono', desc: 'Valida tu nuevo número de contacto.' },
+    phone_update: { title: 'Confirmar Nuevo Celular', desc: 'Valida tu nuevo número de contacto.' },
     '2fa_toggle': { title: 'Cambiar Seguridad 2FA', desc: 'Confirma que deseas cambiar la protección de acceso.' },
     withdrawal_request: { title: 'Autorizar Retiro', desc: 'Ingresa el código enviado a tu correo para confirmar el retiro.' },
     cancel_campaign: { title: 'Confirmar Cancelación', desc: 'Ingresa el código enviado a tu correo para autorizar la cancelación de tu campaña con fondos.' }
@@ -673,6 +676,8 @@ const Dashboard: React.FC = () => {
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: '', rut: '', phone: '', region: '', city: '' });
+  const [pendingUpdate, setPendingUpdate] = useState<any>(null); // CAPTURA DE DATOS PARA OTP
+  
   const [isEditingBank, setIsEditingBank] = useState(false);
   const [bankForm, setBankForm] = useState({ bankName: '', accountType: '', accountNumber: '', holderName: '', holderRut: '' });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -701,8 +706,16 @@ const Dashboard: React.FC = () => {
   const [notification, setNotification] = useState<{title: string, desc: string, type: 'success'|'error'|'info'} | null>(null);
   const [confirmModal, setConfirmModal] = useState<{title: string, desc: string, onConfirm: () => void, variant?: 'violet'|'rose'|'amber'} | null>(null);
 
+  // Estados para reenvío de email
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+
   const service = CampaignService.getInstance();
   const authService = AuthService.getInstance();
+
+  const isVerified = profile?.is_verified === true || isGoogleUser;
+  const isProfileComplete = profile?.rut && profile?.phone && profile?.region && profile?.city;
+  const hasPendingAction = !isVerified || !isProfileComplete;
 
   useEffect(() => {
     if (!authLoading && !user) { navigate('/login'); return; }
@@ -712,9 +725,19 @@ const Dashboard: React.FC = () => {
       if (params.get('verified') === 'true') refreshProfile();
       const tabParam = params.get('tab') as TabType;
       if (tabParam) setActiveTab(tabParam);
-      if (profile) setProfileForm({ full_name: profile.full_name || '', rut: profile.rut || '', phone: profile.phone || '', region: profile.region || '', city: profile.city || '' });
+      
+      // RCA FIX: Solo inicializar si el usuario NO está editando activamente
+      if (profile && !isEditingProfile) {
+        setProfileForm({ 
+          full_name: profile.full_name || '', 
+          rut: profile.rut || '', 
+          phone: profile.phone || '', 
+          region: profile.region || '', 
+          city: profile.city || '' 
+        });
+      }
     }
-  }, [user, authLoading, location.search, profile]);
+  }, [user, authLoading, location.search, profile, isEditingProfile]);
 
   const loadAllData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -736,13 +759,31 @@ const Dashboard: React.FC = () => {
     finally { if (!silent) setLoading(false); }
   };
 
+  const handleResendEmail = async () => {
+    if (!user?.email) return;
+    setResendingEmail(true);
+    try {
+      await authService.resendVerificationEmail(user.email);
+      setResendSent(true);
+      displayToast("Correo de activación reenviado.");
+      setTimeout(() => setResendSent(false), 10000);
+    } catch (e) {
+      setNotification({ title: "Error", desc: "No pudimos reenviar el correo. Intenta más tarde.", type: "error" });
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const triggerProfileUpdate = async (otpCode?: string) => {
     if (!user) return;
     setProfileSaving(true);
     try {
-      const updated = await authService.updateProfile(user.id, profileForm, otpCode);
+      // RCA FIX: Usar datos capturados (pendingUpdate) si existen, sino usar profileForm
+      const dataToSave = pendingUpdate || profileForm;
+      const updated = await authService.updateProfile(user.id, dataToSave, otpCode);
       setProfile(updated);
       setIsEditingProfile(false);
+      setPendingUpdate(null);
       setOtpModal(null);
       displayToast("Cambios guardados con éxito.");
     } catch (e: any) { 
@@ -765,12 +806,17 @@ const Dashboard: React.FC = () => {
       setRutError(null);
     }
     
+    // RCA FIX: Capturar el estado actual antes de disparar el flujo de OTP
+    const dataSnapshot = { ...profileForm };
+    setPendingUpdate(dataSnapshot);
+
     if (profileForm.phone !== (profile?.phone || '')) {
       try {
         await authService.requestSecurityOTP(user.id, 'phone_update');
         setOtpModal({ type: 'phone_update' });
       } catch (e: any) { 
         setNotification({ title: "Error", desc: e.message, type: "error" });
+        setPendingUpdate(null);
       }
       return;
     }
@@ -946,7 +992,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handlePhoneBlur = () => {
-    if (profileForm.phone && !validateChileanPhone(profileForm.phone)) setPhoneError("Teléfono inválido.");
+    if (profileForm.phone && !validateChileanPhone(profileForm.phone)) setPhoneError("Celular inválido.");
     else setPhoneError(null);
   };
 
@@ -1045,14 +1091,30 @@ const Dashboard: React.FC = () => {
               <div className="w-16 h-16 bg-slate-900 text-white rounded-[24px] flex items-center justify-center text-2xl font-black shadow-2xl">{(profile?.full_name || 'U').charAt(0).toUpperCase()}</div>
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mi Panel de Control</p>
-                <div className="flex items-center gap-2"><h1 className="text-3xl font-black text-slate-900 tracking-tight">Hola, {(profile?.full_name || 'Usuario').split(' ')[0]}</h1><CheckCircle2 className="text-emerald-500 w-6 h-6" /></div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hola, {(profile?.full_name || 'Usuario').split(' ')[0]}</h1>
+                  {isVerified && <CheckCircle2 className="text-emerald-500 w-6 h-6" />}
+                </div>
               </div>
             </div>
             <Link to="/crear" className="bg-violet-600 text-white px-6 py-4 rounded-2xl font-black hover:bg-violet-700 shadow-xl flex items-center gap-2"><Plus size={20} /> Nueva Campaña</Link>
           </div>
           <nav className="flex gap-8 mt-10 overflow-x-auto no-scrollbar">
-            {[ { id: 'resumen', label: 'Mis Campañas', icon: BarChart3 }, { id: 'donaciones', label: 'Mis Donaciones', icon: HeartHandshake }, { id: 'finanzas', label: 'Finanzas', icon: Wallet }, { id: 'seguridad', label: 'Seguridad', icon: ShieldCheck }, { id: 'perfil', label: 'Perfil', icon: UserIcon } ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} className={`flex items-center gap-2 pb-4 text-xs font-black transition-all border-b-2 uppercase tracking-widest ${activeTab === tab.id ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}><tab.icon size={14} /> {tab.label}</button>
+            {[ 
+              { id: 'resumen', label: 'Mis Campañas', icon: BarChart3 }, 
+              { id: 'donaciones', label: 'Mis Donaciones', icon: HeartHandshake }, 
+              { id: 'finanzas', label: 'Finanzas', icon: Wallet }, 
+              { id: 'seguridad', label: 'Seguridad', icon: ShieldCheck, alert: hasPendingAction }, 
+              { id: 'perfil', label: 'Perfil', icon: UserIcon, alert: !isProfileComplete } 
+            ].map(tab => (
+              <button 
+                key={tab.id} 
+                onClick={() => setActiveTab(tab.id as TabType)} 
+                className={`flex items-center gap-2 pb-4 text-xs font-black transition-all border-b-2 uppercase tracking-widest relative ${activeTab === tab.id ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <tab.icon size={14} /> {tab.label}
+                {tab.alert && <span className="absolute top-0 -right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-white"></span>}
+              </button>
             ))}
           </nav>
         </div>
@@ -1210,7 +1272,7 @@ const Dashboard: React.FC = () => {
                       <button 
                         onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
                         disabled={actionLoading === c.id} 
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                         Cobrar Fondos
@@ -1312,12 +1374,44 @@ const Dashboard: React.FC = () => {
         {activeTab === 'seguridad' && (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
              <div className="bg-white rounded-[48px] border border-slate-100 p-10 md:p-14 shadow-2xl shadow-slate-100 relative overflow-hidden">
-               <div className="mb-12 relative z-10"><h3 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Protección de Cuenta</h3><p className="text-slate-500 font-medium text-lg">Gestiona la seguridad de tu acceso y las sesiones activas.</p><div className="absolute top-0 right-0 p-2 opacity-5 -mr-4 -mt-4"><ShieldCheck size={140} /></div></div>
+               
+               <div className="mb-12 relative z-10">
+                 <h3 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Protección de Cuenta</h3>
+                 <p className="text-slate-500 font-medium text-lg">Gestiona la seguridad de tu acceso y las sesiones activas.</p>
+                 <div className="absolute top-0 right-0 p-2 opacity-5 -mr-4 -mt-4"><ShieldCheck size={140} /></div>
+               </div>
+
                <div className="space-y-6 relative z-10">
                   <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all duration-300">
-                     <div className="flex items-center gap-6"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-400 group-hover:text-violet-600 transition-colors">{isGoogleUser ? <svg className="w-8 h-8" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> : <Mail size={32} />}</div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Principal</p><p className="text-xl font-black text-slate-900">{user?.email}</p></div></div>
-                     <div className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${profile?.email_verified ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>{isGoogleUser ? 'GOOGLE' : 'VERIFICADO'} <CheckCircle2 size={12} /></div>
+                     <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-400 group-hover:text-violet-600 transition-colors">
+                          {isGoogleUser ? <svg className="w-8 h-8" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> : <Mail size={32} />}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Principal</p>
+                          <p className="text-xl font-black text-slate-900">{user?.email}</p>
+                        </div>
+                     </div>
+                     
+                     <div className="flex flex-col items-end gap-2 text-right">
+                        <div className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border transition-colors ${isVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'}`}>
+                           {isGoogleUser ? 'GOOGLE' : isVerified ? 'VERIFICADO' : 'VERIFICACIÓN PENDIENTE'} 
+                           {isVerified ? <CheckCircle2 size={12} /> : <MailWarning size={12} />}
+                        </div>
+                        {!isVerified && !isGoogleUser && (
+                           <div className="flex flex-col items-end">
+                              <button 
+                                onClick={handleResendEmail} 
+                                disabled={resendingEmail || resendSent}
+                                className="text-[9px] font-black uppercase tracking-widest text-rose-600 hover:text-rose-700 transition-colors mr-1 underline disabled:opacity-50"
+                              >
+                                 {resendingEmail ? 'Reenviando...' : resendSent ? 'Correo enviado' : 'Reenviar correo de activación'}
+                              </button>
+                           </div>
+                        )}
+                     </div>
                   </div>
+
                   {!isGoogleUser ? (
                     <>
                       <div className="p-8 bg-slate-50/50 rounded-[32px] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all duration-300"><div className="flex items-center gap-6"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-400 group-hover:text-violet-600 transition-colors"><Key size={32} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contraseña</p><p className="text-xl font-black text-slate-900 tracking-widest">•••••••••••••</p></div></div><button onClick={() => setShowPasswordModal(true)} className="text-xs font-black text-violet-600 uppercase tracking-[0.2em] hover:underline">Cambiar</button></div>
@@ -1349,7 +1443,6 @@ const Dashboard: React.FC = () => {
                     <div className="p-8 bg-violet-50/50 rounded-[32px] border border-violet-100 flex items-center gap-6 animate-in slide-in-from-top-2"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-violet-600"><Info size={32} /></div><div><p className="text-lg font-black text-violet-900 mb-1">Cuenta vinculada con Google</p><p className="text-sm text-violet-700/70 font-medium leading-relaxed max-w-lg">Tu seguridad es gestionada externamente por Google. Las funciones de contraseña y 2FA local están deshabilitadas.</p></div></div>
                   )}
                </div>
-               <div className="mt-14 pt-10 border-t border-slate-50"><div className="bg-rose-50/50 rounded-[32px] border border-rose-100 p-8 shadow-sm relative overflow-hidden group"><div className="flex items-start gap-6 relative z-10"><div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0"><ShieldAlert size={32} /></div><div className="space-y-4"><div><h4 className="text-2xl font-black text-rose-900 mb-1">Zona Crítica</h4><p className="text-base text-rose-700 font-medium leading-relaxed">Si sospechas acceso no autorizado, solicita el cierre global.</p></div><button onClick={() => setNotification({ title: "Acción en desarrollo", desc: "El cierre global de sesiones es una función administrativa. Nuestro equipo de soporte procesará tu solicitud en breve si confirmas mediante correo.", type: "info" })} className="text-sm font-black text-rose-600 uppercase tracking-[0.15em] hover:underline">Solicitar cierre de sesiones globales</button></div></div></div></div>
              </div>
           </div>
         )}
@@ -1362,7 +1455,7 @@ const Dashboard: React.FC = () => {
                    <div className="flex justify-between items-center mb-12"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Tu Perfil</h3><button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2 px-6 py-2.5 bg-slate-50 text-slate-600 hover:text-violet-600 rounded-2xl font-black text-sm transition-all shadow-sm"><Edit3 size={18} /> Editar</button></div>
                    <div className="space-y-10">
                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Registrado</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.full_name || 'Sin registro'}</div></div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Celular</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.region || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.city || 'Sin registro'}</div></div></div>
                      <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
                      <div className="pt-6 border-t border-slate-50">
@@ -1382,7 +1475,7 @@ const Dashboard: React.FC = () => {
                  </>
                ) : (
                   <form onSubmit={(e) => { e.preventDefault(); handleUpdateProfile(); }} className="space-y-8">
-                    <div className="flex justify-between items-center mb-10"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Editar Perfil</h3><button type="button" onClick={() => setIsEditingProfile(false)} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"><X size={24} /></button></div>
+                    <div className="flex justify-between items-center mb-10"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Editar Perfil</h3><button type="button" onClick={() => { setIsEditingProfile(false); setPendingUpdate(null); }} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"><X size={24} /></button></div>
                     <div className="space-y-8">
                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Completo</label><input type="text" className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] outline-none font-black text-slate-900 text-lg transition-all" value={profileForm.full_name} onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})} required /></div>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1390,6 +1483,7 @@ const Dashboard: React.FC = () => {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label>
                             <input 
                               type="text" 
+                              maxLength={12}
                               className={`w-full p-6 bg-slate-50 border-2 ${rutError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
                               value={profileForm.rut} 
                               onChange={e => setProfileForm({...profileForm, rut: formatRut(e.target.value)})} 
@@ -1399,21 +1493,29 @@ const Dashboard: React.FC = () => {
                             {rutError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{rutError}</p>}
                          </div>
                          <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label>
-                            <input 
-                              type="text" 
-                              className={`w-full p-6 bg-slate-50 border-2 ${phoneError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
-                              value={profileForm.phone} 
-                              onChange={e => setProfileForm({...profileForm, phone: formatPhone(e.target.value)})} 
-                              onBlur={handlePhoneBlur} 
-                              placeholder="+56 9 XXXX XXXX" 
-                            />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Celular</label>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-6 font-black text-slate-400 text-lg pointer-events-none">+56 9</span>
+                              <input 
+                                type="text" 
+                                maxLength={8}
+                                className={`w-full p-6 bg-slate-50 border-2 ${phoneError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
+                                style={{ paddingLeft: '5.5rem' }}
+                                value={profileForm.phone.replace('+56 9 ', '').replace('+569', '')} 
+                                onChange={e => {
+                                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 8);
+                                  setProfileForm({...profileForm, phone: `+56 9 ${digitsOnly}`});
+                                }} 
+                                onBlur={handlePhoneBlur} 
+                                placeholder="XXXXXXXX" 
+                              />
+                            </div>
                             {phoneError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{phoneError}</p>}
                          </div>
                        </div>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><select className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] font-black text-lg outline-none appearance-none cursor-pointer" value={profileForm.region} onChange={e => handleRegionChange(e.target.value)} required><option value="">Selecciona Región</option>{LOCATION_DATA.regions.map(r => <option key={r.slug} value={r.name}>{r.name}</option>)}</select></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><select className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] font-black text-lg outline-none appearance-none disabled:opacity-50 cursor-pointer" value={profileForm.city} onChange={e => setProfileForm({...profileForm, city: e.target.value})} disabled={!profileForm.region} required><option value="">Selecciona Ciudad</option>{currentRegionCities.map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
                     </div>
-                    <div className="pt-10 flex gap-4"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button><button type="submit" disabled={profileSaving || !!rutError || !!phoneError} className="flex-[2] py-5 bg-violet-600 text-white rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-violet-700 shadow-xl flex items-center justify-center gap-3 transition-all">{profileSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Guardar Perfil</button></div>
+                    <div className="pt-10 flex gap-4"><button type="button" onClick={() => { setIsEditingProfile(false); setPendingUpdate(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button><button type="submit" disabled={profileSaving || !!rutError || !!phoneError} className="flex-[2] py-5 bg-violet-600 text-white rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-violet-700 shadow-xl flex items-center justify-center gap-3 transition-all">{profileSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Guardar Perfil</button></div>
                   </form>
                )}
                {showSuccessToast.show && <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-8 duration-500 z-50 border border-emerald-400"><CheckCircle2 size={20} /><span className="text-sm font-black uppercase tracking-widest">{showSuccessToast.msg}</span></div>}

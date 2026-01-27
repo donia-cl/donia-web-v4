@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck } from 'lucide-react';
+import { Heart, Database, Cpu, Activity, User, LogOut, ChevronDown, LayoutDashboard, Menu, X, ShieldCheck, MailWarning, RefreshCw, Check, Sparkles, UserCircle } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/AuthService';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -12,6 +12,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isWizard = location.pathname.startsWith('/crear');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   
   const service = CampaignService.getInstance();
   const [dbStatus, setDbStatus] = useState<'cloud' | 'local'>('local');
@@ -33,6 +35,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/');
   };
 
+  const handleResendEmail = async () => {
+    if (!user?.email) return;
+    setResending(true);
+    try {
+      await AuthService.getInstance().resendVerificationEmail(user.email);
+      setResendSent(true);
+      setTimeout(() => setResendSent(false), 5000);
+    } catch (e) {
+      alert("Error al reenviar. Intenta más tarde.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   const NavLinks = () => (
     <>
       <Link to="/explorar" onClick={() => setIsMobileMenuOpen(false)} className={`font-bold transition-colors ${location.pathname === '/explorar' ? 'text-violet-600' : 'text-slate-600 hover:text-violet-600'}`}>Explorar</Link>
@@ -43,8 +59,52 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Mi Perfil';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
+  // LÓGICA DE VERIFICACIÓN Y PERFIL:
+  const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
+  const isVerified = profile?.is_verified === true || isGoogle;
+  const isProfileComplete = profile?.rut && profile?.phone && profile?.region && profile?.city;
+  
+  const showBanner = user && profile && (!isVerified || !isProfileComplete);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      {showBanner && (
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 text-white py-3 px-4 animate-in slide-in-from-top duration-500 shadow-lg relative z-[60]">
+           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
+                  <Sparkles size={16} className="text-violet-200" />
+                </div>
+                <div className="text-sm md:text-base">
+                  <span className="font-black uppercase tracking-widest text-[10px] block opacity-70 mb-0.5">Acciones pendientes</span>
+                  <p className="font-bold leading-tight">
+                    {!isVerified && !isProfileComplete ? (
+                      <>Debes verificar tu correo y completar tu perfil para publicar.</>
+                    ) : !isVerified ? (
+                      <>Debes verificar tu correo para activar tu cuenta.</>
+                    ) : (
+                      <>Debes completar tus datos en la pestaña de Perfil.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {!isVerified && !isGoogle && (
+                  <button 
+                    onClick={handleResendEmail}
+                    disabled={resending || resendSent}
+                    className="bg-white/20 hover:bg-white/30 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 active:scale-95 disabled:opacity-50"
+                  >
+                    {resending ? <RefreshCw size={12} className="animate-spin" /> : resendSent ? <Check size={12} /> : <RefreshCw size={12} />}
+                    {resendSent ? 'Enviado' : 'Reenviar Activación'}
+                  </button>
+                )}
+              </div>
+           </div>
+        </div>
+      )}
+
       <header className="border-b border-slate-100 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">

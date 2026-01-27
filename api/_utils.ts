@@ -1,4 +1,3 @@
-
 import { Resend } from 'resend';
 
 // rateLimitMap for in-memory rate limiting
@@ -54,26 +53,23 @@ export const logger = {
 };
 
 export function getCanonicalBackendBaseUrl(req?: any): string {
-  // 1. Priorizar cabeceras de proxy de Vercel/Ambiente real
   const host = req?.headers?.['x-forwarded-host'] || req?.headers?.host;
-  
   if (host) {
     const protocol = req.headers?.['x-forwarded-proto'] || 'https';
     return `${protocol}://${host}`;
   }
-  
-  // 2. Fallbacks de variables de entorno configuradas
   if (process.env.CANONICAL_BASE_URL) return process.env.CANONICAL_BASE_URL.replace(/\/$/, '');
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  
-  // 3. Dominio final de producción
   return 'https://donia.cl';
 }
 
 export class Mailer {
   private static getResend() {
     const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) throw new Error('RESEND_API_KEY no configurada.');
+    if (!apiKey) {
+      logger.error('CONFIG_RESEND_KEY_MISSING', new Error('RESEND_API_KEY is not defined in environment variables.'));
+      throw new Error('RESEND_API_KEY no configurada.');
+    }
     return new Resend(apiKey);
   }
 
@@ -113,10 +109,72 @@ export class Mailer {
   }
 
   private static async send(payload: any) {
-    const resend = this.getResend();
-    const { data, error } = await resend.emails.send(payload);
-    if (error) throw new Error(error.message);
-    return data;
+    logger.info('RESEND_SEND_ATTEMPT', { to: payload.to, subject: payload.subject });
+    try {
+      const resend = this.getResend();
+      const { data, error } = await resend.emails.send(payload);
+      
+      if (error) {
+        logger.error('RESEND_SEND_ERROR_RESPONSE', error, { payload });
+        throw new Error(error.message);
+      }
+
+      logger.info('RESEND_SEND_SUCCESS', { resendId: data?.id, to: payload.to });
+      return data;
+    } catch (err: any) {
+      logger.error('RESEND_FATAL_EXCEPTION', err, { to: payload.to });
+      throw err;
+    }
+  }
+
+  /**
+   * Genera el token de verificación en la tabla email_verifications y envía el correo.
+   */
+  static async generateAndSendVerification(supabase: any, userId: string, email: string, fullName: string, req?: any) {
+    logger.info('VERIFICATION_FLOW_START', { userId, email });
+    try {
+      // 1. Limpiar cualquier token pendiente no consumido para este usuario
+      const { error: cleanError } = await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
+      if (cleanError) {
+        logger.warn('VERIFICATION_CLEANUP_WARN', cleanError, { userId });
+      } else {
+        logger.info('VERIFICATION_CLEANUP_SUCCESS', { userId });
+      }
+
+      // 2. Crear nuevo token de verificación
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); 
+      
+      const { data: verification, error: vError } = await supabase
+        .from('email_verifications')
+        .insert([{ 
+          user_id: userId, 
+          expires_at: expiresAt
+        }])
+        .select()
+        .single();
+
+      if (vError) {
+        logger.error('VERIFICATION_DB_INSERT_FAIL', vError, { userId });
+        throw vError;
+      }
+
+      logger.info('VERIFICATION_TOKEN_CREATED', { tokenId: verification.id, userId });
+
+      // 3. Construir link
+      const baseUrl = getCanonicalBackendBaseUrl(req);
+      const verifyLink = `${baseUrl}/api/verify-token?token=${verification.token}`;
+      
+      logger.info('VERIFICATION_LINK_READY', { userId, baseUrl });
+
+      // 4. Enviar vía Resend
+      await this.sendAccountVerification(email, fullName, verifyLink);
+      
+      logger.info('VERIFICATION_FLOW_COMPLETE', { email, userId });
+      return true;
+    } catch (err) {
+      logger.error('VERIFICATION_FLOW_FATAL_FAIL', err, { userId, email });
+      return false;
+    }
   }
 
   static async sendSecurityOTP(to: string, userName: string, code: string, action: string) {
@@ -125,49 +183,27 @@ export class Mailer {
       <p>Hola ${userName}, para autorizar el <strong>${action}</strong> en tu cuenta de Donia, utiliza el siguiente código de verificación:</p>
       <div class="otp-code">${code}</div>
       <p style="text-align: center; color: #64748b; font-size: 14px;">Este código expirará en 10 minutos.</p>
-      <p style="margin-top: 30px; font-size: 13px; color: #94a3b8;">Si tú no solicitaste este cambio, te recomendamos cambiar tu contraseña inmediatamente y contactar a soporte@donia.cl.</p>
     `;
-    return this.send({
-      from: 'Donia Seguridad <seguridad@notifications.donia.cl>',
-      to,
-      subject: `Código de verificación: ${code}`,
-      html: this.getHtmlLayout(body)
-    });
+    return this.send({ from: 'Donia Seguridad <seguridad@notifications.donia.cl>', to, subject: `Código de verificación: ${code}`, html: this.getHtmlLayout(body) });
   }
 
   static async send2FACode(to: string, userName: string, code: string) {
     const body = `
-      <h1>Código de Acceso (2FA)</h1>
+      <h1>Código de Verificación (2FA)</h1>
       <p>Hola ${userName}, utiliza el siguiente código para completar tu inicio de sesión en Donia:</p>
       <div class="otp-code">${code}</div>
-      <p style="text-align: center; color: #64748b; font-size: 14px;">Si no intentaste ingresar a tu cuenta, por favor cambia tu contraseña de inmediato.</p>
+      <p style="text-align: center; color: #64748b; font-size: 14px;">Este código expirará en 10 minutos.</p>
     `;
-    return this.send({
-      from: 'Donia Seguridad <seguridad@notifications.donia.cl>',
-      to,
-      subject: `Tu código de acceso Donia: ${code}`,
-      html: this.getHtmlLayout(body)
-    });
+    return this.send({ from: 'Donia Seguridad <seguridad@notifications.donia.cl>', to, subject: `Tu código de acceso: ${code}`, html: this.getHtmlLayout(body) });
   }
 
   static async sendDonationReceipt(to: string, userName: string, amount: number, campaignTitle: string, campaignId: string, req?: any) {
-    const body = `
-      <h1>¡Gracias por tu apoyo!</h1>
-      <p>Hola ${userName}, recibimos con éxito tu donación para la campaña <strong>"${campaignTitle}"</strong>.</p>
-      <div style="font-size: 40px; font-weight: 900; color: #7c3aed; margin: 20px 0;">$${amount.toLocaleString('es-CL')}</div>
-      <div style="text-align: center;"><a href="${getCanonicalBackendBaseUrl(req)}/campana/${campaignId}" class="button">Ver campaña</a></div>
-    `;
+    const body = `<h1>¡Gracias por tu apoyo!</h1><p>Hola ${userName}, recibimos con éxito tu donación para la campaña <strong>"${campaignTitle}"</strong>.</p><div style="font-size: 40px; font-weight: 900; color: #7c3aed; margin: 20px 0;">$${amount.toLocaleString('es-CL')}</div><div style="text-align: center;"><a href="${getCanonicalBackendBaseUrl(req)}/campana/${campaignId}" class="button">Ver campaña</a></div>`;
     return this.send({ from: 'Donia <pagos@notifications.donia.cl>', to, subject: 'Recibo de tu donación en Donia', html: this.getHtmlLayout(body) });
   }
 
   static async sendOwnerDonationNotification(to: string, ownerName: string, donorName: string, amount: number, campaignTitle: string, comment?: string, req?: any) {
-    const body = `
-      <h1>¡Nueva donación!</h1>
-      <p>Hola ${ownerName}, tienes un nuevo aporte de <strong>$${amount.toLocaleString('es-CL')}</strong> en "${campaignTitle}".</p>
-      <p>De: <strong>${donorName}</strong></p>
-      ${comment ? `<div style="background: #f1f5f9; padding: 20px; border-radius: 16px; border-left: 4px solid #7c3aed;">"${comment}"</div>` : ''}
-      <div style="text-align: center; margin-top: 20px;"><a href="${getCanonicalBackendBaseUrl(req)}/dashboard" class="button">Ir a mi panel</a></div>
-    `;
+    const body = `<h1>¡Nueva donación!</h1><p>Hola ${ownerName}, tienes un nuevo aporte de <strong>$${amount.toLocaleString('es-CL')}</strong> en "${campaignTitle}".</p><p>De: <strong>${donorName}</strong></p>${comment ? `<div style="background: #f1f5f9; padding: 20px; border-radius: 16px; border-left: 4px solid #7c3aed;">"${comment}"</div>` : ''}<div style="text-align: center; margin-top: 20px;"><a href="${getCanonicalBackendBaseUrl(req)}/dashboard" class="button">Ir a mi panel</a></div>`;
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: '¡Nueva donación en tu campaña!', html: this.getHtmlLayout(body) });
   }
 
@@ -176,23 +212,40 @@ export class Mailer {
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: '¡Tu campaña ya está activa!', html: this.getHtmlLayout(body) });
   }
 
+  static async sendAccountVerification(to: string, userName: string, link: string) {
+    const body = `
+      <h1>¡Activa tu cuenta!</h1>
+      <p>Hola ${userName}, bienvenido a Donia. Para poder publicar tu primera campaña y recibir fondos, necesitamos que valides tu correo haciendo clic en el siguiente botón:</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${link}" class="button">Validar mi correo</a>
+      </div>
+      <p style="font-size: 11px; color: #94a3b8; text-align: center;">Si el botón no funciona, copia y pega este enlace: ${link}</p>
+    `;
+    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: 'Activa tu cuenta en Donia Chile', html: this.getHtmlLayout(body) });
+  }
+
+  static async sendWelcomeNotification(to: string, userName: string, req?: any) {
+    const body = `<h1>¡Hola ${userName}!</h1><p>Cuenta creada exitosamente en Donia Chile.</p>`;
+    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: '¡Bienvenido a Donia!', html: this.getHtmlLayout(body) });
+  }
+  
   static async sendCampaignUpdatedNotification(to: string, userName: string, campaignTitle: string, campaignId: string, req?: any) {
     const body = `<h1>Campaña actualizada</h1><p>Hola ${userName}, cambios guardados en "${campaignTitle}".</p>`;
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: 'Actualización de campaña', html: this.getHtmlLayout(body) });
   }
 
   static async sendCampaignPausedNotification(to: string, userName: string, campaignTitle: string) {
-    const body = `<h1>Campaña Pausada</h1><p>Hola ${userName}, tu campaña <strong>"${campaignTitle}"</strong> ha sido pausada y no recibirá nuevas donaciones temporalmente.</p><p>Puedes reanudarla en cualquier momento desde tu panel de control.</p>`;
+    const body = `<h1>Campaña Pausada</h1><p>Hola ${userName}, tu campaña <strong>"${campaignTitle}"</strong> ha sido pausada temporalmente.</p>`;
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: 'Tu campaña ha sido pausada', html: this.getHtmlLayout(body) });
   }
 
   static async sendCampaignResumedNotification(to: string, userName: string, campaignTitle: string, campaignId: string, req?: any) {
-    const body = `<h1>Campaña Reanudada</h1><p>Hola ${userName}, tu campaña <strong>"${campaignTitle}"</strong> está activa nuevamente y lista para recibir aportes.</p><div style="text-align: center;"><a href="${getCanonicalBackendBaseUrl(req)}/campana/${campaignId}" class="button">Ver campaña</a></div>`;
+    const body = `<h1>Campaña Reanudada</h1><p>Hola ${userName}, tu campaña <strong>"${campaignTitle}"</strong> está activa nuevamente.</p>`;
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: 'Tu campaña ha sido reanudada', html: this.getHtmlLayout(body) });
   }
 
   static async sendCampaignCancelledNotification(to: string, userName: string, campaignTitle: string) {
-    const body = `<h1>Campaña Cancelada</h1><p>Hola ${userName}, confirmamos que tu campaña <strong>"${campaignTitle}"</strong> ha sido cancelada definitivamente.</p><p>Si tienes fondos recaudados pendientes de retiro, recuerda que estos seguirán disponibles según nuestras políticas de seguridad.</p>`;
+    const body = `<h1>Campaña Cancelada</h1><p>Hola ${userName}, confirmamos que tu campaña <strong>"${campaignTitle}"</strong> ha sido cancelada definitivamente.</p>`;
     return this.send({ from: 'Donia <notificaciones@notifications.donia.cl>', to, subject: 'Tu campaña ha sido cancelada', html: this.getHtmlLayout(body) });
   }
 
@@ -214,16 +267,6 @@ export class Mailer {
   static async sendWithdrawalConfirmation(to: string, userName: string, amount: number, campaignTitle: string, req?: any) {
     const body = `<h1>Retiro en proceso</h1><p>Hola ${userName}, recibimos tu solicitud de $${amount.toLocaleString('es-CL')}.</p>`;
     return this.send({ from: 'Donia <pagos@notifications.donia.cl>', to, subject: 'Retiro en proceso', html: this.getHtmlLayout(body) });
-  }
-
-  static async sendAccountVerification(to: string, userName: string, link: string) {
-    const body = `<h1>¡Bienvenido!</h1><p>Hola ${userName}, activa tu cuenta:</p><div style="text-align: center;"><a href="${link}" class="button">Activar cuenta</a></div>`;
-    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: 'Activa tu cuenta', html: this.getHtmlLayout(body) });
-  }
-
-  static async sendWelcomeNotification(to: string, userName: string, req?: any) {
-    const body = `<h1>¡Hola ${userName}!</h1><p>Cuenta creada exitosamente.</p>`;
-    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: '¡Bienvenido a Donia!', html: this.getHtmlLayout(body) });
   }
 }
 
