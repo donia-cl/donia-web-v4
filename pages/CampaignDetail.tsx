@@ -159,9 +159,19 @@ const CampaignDetail: React.FC = () => {
   };
 
   const handleInstagramShare = async () => {
-    // Para Instagram en la web, la mejor experiencia es copiar el link directamente.
-    // Usar navigator.share abre el menú de sistema (AirDrop/Mensajes) que no es lo que el usuario espera al ver el logo de Instagram.
-    await copyToClipboard();
+    if (navigator.share && campaign) {
+      try {
+        await navigator.share({
+          title: campaign.titulo,
+          text: `Apoya esta causa en Donia: ${campaign.titulo}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        copyToClipboard();
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   if (loading) return (
@@ -451,8 +461,8 @@ const CampaignDetail: React.FC = () => {
                     <div className="flex gap-3">
                       <button onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(campaign.titulo + " " + window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all" title="Compartir en WhatsApp"><MessageCircle size={20} /></button>
                       <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all" title="Compartir en Facebook"><Facebook size={20} /></button>
-                      <button onClick={handleInstagramShare} className={`flex-1 aspect-square rounded-xl flex items-center justify-center transition-all ${shareStatus === 'copied' ? 'bg-emerald-600 text-white' : 'bg-pink-50 text-pink-600 hover:bg-pink-600 hover:text-white'}`} title="Copiar para Instagram">{shareStatus === 'copied' ? <Check size={20} /> : <Instagram size={20} />}</button>
-                      <button onClick={copyToClipboard} className={`flex-1 aspect-square rounded-xl flex items-center justify-center transition-all ${shareStatus === 'copied' ? 'bg-emerald-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-600 hover:text-white'}`} title="Copiar enlace">{shareStatus === 'copied' ? <Check size={20} /> : <LinkIcon size={20} />}</button>
+                      <button onClick={handleInstagramShare} className="flex-1 aspect-square bg-pink-50 text-pink-600 rounded-xl flex items-center justify-center hover:bg-pink-600 hover:text-white transition-all" title="Compartir en Instagram"><Instagram size={20} /></button>
+                      <button onClick={copyToClipboard} className={`flex-1 aspect-square rounded-xl flex items-center justify-center transition-all ${shareStatus === 'copied' ? 'bg-emerald-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-600'}`} title="Copiar enlace">{shareStatus === 'copied' ? <Check size={20} /> : <LinkIcon size={20} />}</button>
                     </div>
                   </div>
                 </div>
