@@ -676,6 +676,8 @@ const Dashboard: React.FC = () => {
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: '', rut: '', phone: '', region: '', city: '' });
+  const [pendingUpdate, setPendingUpdate] = useState<any>(null); // CAPTURA DE DATOS PARA OTP
+  
   const [isEditingBank, setIsEditingBank] = useState(false);
   const [bankForm, setBankForm] = useState({ bankName: '', accountType: '', accountNumber: '', holderName: '', holderRut: '' });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -723,9 +725,19 @@ const Dashboard: React.FC = () => {
       if (params.get('verified') === 'true') refreshProfile();
       const tabParam = params.get('tab') as TabType;
       if (tabParam) setActiveTab(tabParam);
-      if (profile) setProfileForm({ full_name: profile.full_name || '', rut: profile.rut || '', phone: profile.phone || '', region: profile.region || '', city: profile.city || '' });
+      
+      // RCA FIX: Solo inicializar si el usuario NO está editando activamente
+      if (profile && !isEditingProfile) {
+        setProfileForm({ 
+          full_name: profile.full_name || '', 
+          rut: profile.rut || '', 
+          phone: profile.phone || '', 
+          region: profile.region || '', 
+          city: profile.city || '' 
+        });
+      }
     }
-  }, [user, authLoading, location.search, profile]);
+  }, [user, authLoading, location.search, profile, isEditingProfile]);
 
   const loadAllData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -766,9 +778,12 @@ const Dashboard: React.FC = () => {
     if (!user) return;
     setProfileSaving(true);
     try {
-      const updated = await authService.updateProfile(user.id, profileForm, otpCode);
+      // RCA FIX: Usar datos capturados (pendingUpdate) si existen, sino usar profileForm
+      const dataToSave = pendingUpdate || profileForm;
+      const updated = await authService.updateProfile(user.id, dataToSave, otpCode);
       setProfile(updated);
       setIsEditingProfile(false);
+      setPendingUpdate(null);
       setOtpModal(null);
       displayToast("Cambios guardados con éxito.");
     } catch (e: any) { 
@@ -791,12 +806,17 @@ const Dashboard: React.FC = () => {
       setRutError(null);
     }
     
+    // RCA FIX: Capturar el estado actual antes de disparar el flujo de OTP
+    const dataSnapshot = { ...profileForm };
+    setPendingUpdate(dataSnapshot);
+
     if (profileForm.phone !== (profile?.phone || '')) {
       try {
         await authService.requestSecurityOTP(user.id, 'phone_update');
         setOtpModal({ type: 'phone_update' });
       } catch (e: any) { 
         setNotification({ title: "Error", desc: e.message, type: "error" });
+        setPendingUpdate(null);
       }
       return;
     }
@@ -1252,7 +1272,7 @@ const Dashboard: React.FC = () => {
                       <button 
                         onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
                         disabled={actionLoading === c.id} 
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                         Cobrar Fondos
@@ -1455,7 +1475,7 @@ const Dashboard: React.FC = () => {
                  </>
                ) : (
                   <form onSubmit={(e) => { e.preventDefault(); handleUpdateProfile(); }} className="space-y-8">
-                    <div className="flex justify-between items-center mb-10"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Editar Perfil</h3><button type="button" onClick={() => setIsEditingProfile(false)} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"><X size={24} /></button></div>
+                    <div className="flex justify-between items-center mb-10"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Editar Perfil</h3><button type="button" onClick={() => { setIsEditingProfile(false); setPendingUpdate(null); }} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-all"><X size={24} /></button></div>
                     <div className="space-y-8">
                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Completo</label><input type="text" className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] outline-none font-black text-slate-900 text-lg transition-all" value={profileForm.full_name} onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})} required /></div>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1486,7 +1506,7 @@ const Dashboard: React.FC = () => {
                        </div>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><select className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] font-black text-lg outline-none appearance-none cursor-pointer" value={profileForm.region} onChange={e => handleRegionChange(e.target.value)} required><option value="">Selecciona Región</option>{LOCATION_DATA.regions.map(r => <option key={r.slug} value={r.name}>{r.name}</option>)}</select></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><select className="w-full p-6 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[24px] font-black text-lg outline-none appearance-none disabled:opacity-50 cursor-pointer" value={profileForm.city} onChange={e => setProfileForm({...profileForm, city: e.target.value})} disabled={!profileForm.region} required><option value="">Selecciona Ciudad</option>{currentRegionCities.map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
                     </div>
-                    <div className="pt-10 flex gap-4"><button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button><button type="submit" disabled={profileSaving || !!rutError || !!phoneError} className="flex-[2] py-5 bg-violet-600 text-white rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-violet-700 shadow-xl flex items-center justify-center gap-3 transition-all">{profileSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Guardar Perfil</button></div>
+                    <div className="pt-10 flex gap-4"><button type="button" onClick={() => { setIsEditingProfile(false); setPendingUpdate(null); }} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button><button type="submit" disabled={profileSaving || !!rutError || !!phoneError} className="flex-[2] py-5 bg-violet-600 text-white rounded-[24px] font-black text-base uppercase tracking-widest hover:bg-violet-700 shadow-xl flex items-center justify-center gap-3 transition-all">{profileSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Guardar Perfil</button></div>
                   </form>
                )}
                {showSuccessToast.show && <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-8 py-3.5 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-8 duration-500 z-50 border border-emerald-400"><CheckCircle2 size={20} /><span className="text-sm font-black uppercase tracking-widest">{showSuccessToast.msg}</span></div>}
