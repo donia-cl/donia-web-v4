@@ -66,7 +66,10 @@ export function getCanonicalBackendBaseUrl(req?: any): string {
 export class Mailer {
   private static getResend() {
     const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) throw new Error('RESEND_API_KEY no configurada.');
+    if (!apiKey) {
+      logger.error('CONFIG_RESEND_KEY_MISSING', new Error('RESEND_API_KEY is not defined in environment variables.'));
+      throw new Error('RESEND_API_KEY no configurada.');
+    }
     return new Resend(apiKey);
   }
 
@@ -106,22 +109,40 @@ export class Mailer {
   }
 
   private static async send(payload: any) {
-    const resend = this.getResend();
-    const { data, error } = await resend.emails.send(payload);
-    if (error) throw new Error(error.message);
-    return data;
+    logger.info('RESEND_SEND_ATTEMPT', { to: payload.to, subject: payload.subject });
+    try {
+      const resend = this.getResend();
+      const { data, error } = await resend.emails.send(payload);
+      
+      if (error) {
+        logger.error('RESEND_SEND_ERROR_RESPONSE', error, { payload });
+        throw new Error(error.message);
+      }
+
+      logger.info('RESEND_SEND_SUCCESS', { resendId: data?.id, to: payload.to });
+      return data;
+    } catch (err: any) {
+      logger.error('RESEND_FATAL_EXCEPTION', err, { to: payload.to });
+      throw err;
+    }
   }
 
   /**
    * Genera el token de verificación en la tabla email_verifications y envía el correo.
    */
   static async generateAndSendVerification(supabase: any, userId: string, email: string, fullName: string, req?: any) {
+    logger.info('VERIFICATION_FLOW_START', { userId, email });
     try {
       // 1. Limpiar cualquier token pendiente no consumido para este usuario
-      await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
+      const { error: cleanError } = await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
+      if (cleanError) {
+        logger.warn('VERIFICATION_CLEANUP_WARN', cleanError, { userId });
+      } else {
+        logger.info('VERIFICATION_CLEANUP_SUCCESS', { userId });
+      }
 
       // 2. Crear nuevo token de verificación
-      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48 horas
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); 
       
       const { data: verification, error: vError } = await supabase
         .from('email_verifications')
@@ -133,21 +154,25 @@ export class Mailer {
         .single();
 
       if (vError) {
-        logger.error('DB_INSERT_VERIFICATION_TOKEN_FAIL', vError, { userId });
+        logger.error('VERIFICATION_DB_INSERT_FAIL', vError, { userId });
         throw vError;
       }
+
+      logger.info('VERIFICATION_TOKEN_CREATED', { tokenId: verification.id, userId });
 
       // 3. Construir link
       const baseUrl = getCanonicalBackendBaseUrl(req);
       const verifyLink = `${baseUrl}/api/verify-token?token=${verification.token}`;
       
+      logger.info('VERIFICATION_LINK_READY', { userId, baseUrl });
+
       // 4. Enviar vía Resend
       await this.sendAccountVerification(email, fullName, verifyLink);
       
-      logger.info('VERIFICATION_WORKFLOW_SUCCESS', { email, userId, tokenId: verification.id });
+      logger.info('VERIFICATION_FLOW_COMPLETE', { email, userId });
       return true;
     } catch (err) {
-      logger.error('VERIFICATION_WORKFLOW_FAIL', err, { userId, email });
+      logger.error('VERIFICATION_FLOW_FATAL_FAIL', err, { userId, email });
       return false;
     }
   }

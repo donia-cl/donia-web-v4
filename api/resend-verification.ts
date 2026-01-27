@@ -11,6 +11,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { email } = req.body;
+    logger.info('RESEND_VERIFICATION_API_CALLED', { email });
     Validator.email(email);
 
     const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
@@ -32,6 +33,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const user = adminUser.user;
+    logger.info('RESEND_VERIFICATION_USER_LOOKUP_SUCCESS', { userId: user.id, email });
 
     // 2. Obtener nombre del perfil
     const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
@@ -40,9 +42,12 @@ export default async function handler(req: any, res: any) {
     // 3. Usar el flujo centralizado de Mailer
     const success = await Mailer.generateAndSendVerification(supabase, user.id, email, fullName, req);
 
-    if (!success) throw new Error("Fallo al generar el correo de activación.");
+    if (!success) {
+      logger.error('RESEND_VERIFICATION_WORKFLOW_FAILED', new Error("Fallo en Mailer workflow"), { userId: user.id });
+      throw new Error("Fallo al generar el correo de activación.");
+    }
 
-    logger.info('VERIFICATION_EMAIL_RESENT', { email, userId: user.id });
+    logger.info('RESEND_VERIFICATION_SUCCESS', { email, userId: user.id });
     return res.status(200).json({ success: true, message: "Correo de verificación reenviado exitosamente." });
 
   } catch (error: any) {
