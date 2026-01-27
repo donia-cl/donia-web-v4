@@ -17,26 +17,28 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Server configuration missing' });
   }
 
-  // Usar Service Role para garantizar permisos de escritura y bypass de RLS
+  // IMPORTANTE: Usar Service Role para bypass de RLS y gestión de tokens
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    // 1. Obtener el perfil actual si existe
-    const { data: existingProfile } = await supabase.from('profiles').select('id, is_verified').eq('id', id).maybeSingle();
-
-    // 2. Obtener info de Auth para validar proveedor real
+    // 1. Obtener info del usuario de Auth para saber el proveedor real
     const { data: authUser, error: authError } = await (supabase.auth as any).admin.getUserById(id);
-    if (authError || !authUser?.user) throw new Error("Error obteniendo datos del usuario");
+    if (authError || !authUser?.user) {
+      logger.error('CREATE_PROFILE_AUTH_LOOKUP_FAIL', authError, { id });
+      throw new Error("Usuario no encontrado en el sistema de autenticación.");
+    }
 
     const provider = authUser.user.app_metadata?.provider || authUser.user.app_metadata?.providers?.[0];
     const isGoogle = provider === 'google';
 
-    // 3. Determinar estado de verificación final
-    // Prioridad: 
-    // - Si ya estaba verificado en el perfil, se mantiene.
-    // - Si es Google, se marca como verificado automáticamente.
-    // - De lo contrario, FALSE.
-    let finalIsVerified = (existingProfile?.is_verified === true) || isGoogle;
+    // 2. Verificar si ya existe un perfil
+    const { data: existing } = await supabase.from('profiles').select('id, is_verified').eq('id', id).maybeSingle();
+
+    // LÓGICA CRÍTICA: 
+    // - Si es Google: is_verified = true
+    // - Si ya existía y estaba verificado: se mantiene true
+    // - Si es nuevo o no verificado y es Email/Password: is_verified = false
+    let finalIsVerified = isGoogle || (existing?.is_verified === true);
 
     const { error: upsertError } = await supabase
       .from('profiles')
@@ -45,17 +47,16 @@ export default async function handler(req: any, res: any) {
         full_name: fullName || authUser.user.user_metadata?.full_name || 'Usuario Nuevo',
         role: 'user',
         is_verified: finalIsVerified,
-        email_verified: finalIsVerified // Por consistencia histórica
+        email_verified: finalIsVerified
       }, { onConflict: 'id' });
 
     if (upsertError) throw upsertError;
 
-    // 4. Lógica de envío de correos
+    // 3. Si NO está verificado, generamos token y mandamos correo (Lógica similar a cambio de perfil)
     if (!finalIsVerified && authUser.user.email) {
-      // Es una cuenta de correo nueva o pendiente -> Mandamos token
-      logger.info('WORKFLOW_START: SEND_INITIAL_VERIFICATION', { userId: id, email: authUser.user.email });
+      logger.info('TRIGGERING_NEW_USER_VERIFICATION', { userId: id, email: authUser.user.email });
       
-      const emailSent = await Mailer.generateAndSendVerification(
+      const success = await Mailer.generateAndSendVerification(
         supabase, 
         id, 
         authUser.user.email, 
@@ -63,16 +64,17 @@ export default async function handler(req: any, res: any) {
         req
       );
 
-      if (!emailSent) {
-        logger.error('WORKFLOW_FAIL: INITIAL_VERIFICATION_MAIL_NOT_SENT', new Error("Fallo en Mailer"), { id });
+      if (!success) {
+        logger.error('VERIFICATION_EMAIL_SEND_FAIL', new Error("No se pudo enviar el correo de activación"), { id });
       }
-    } else if (!existingProfile && isGoogle && authUser.user.email) {
-      // Es un usuario nuevo de Google -> Solo bienvenida
-      await Mailer.sendWelcomeNotification(authUser.user.email, fullName || 'Usuario', req);
+    } else if (!existing && isGoogle) {
+      // Si es Google y es el primer ingreso, mandamos bienvenida simple
+      if (authUser.user.email) {
+        await Mailer.sendWelcomeNotification(authUser.user.email, fullName || 'Usuario', req);
+      }
     }
 
     return res.status(200).json({ success: true, is_verified: finalIsVerified });
-
   } catch (error: any) {
     logger.error('CREATE_PROFILE_API_ERROR', error);
     return res.status(500).json({ error: error.message });
