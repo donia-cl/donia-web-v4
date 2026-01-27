@@ -22,7 +22,8 @@ import {
   Clock,
   Timer,
   ChevronRight,
-  XCircle
+  XCircle,
+  Instagram
 } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignData, Donation } from '../types';
@@ -103,6 +104,26 @@ const CampaignDetail: React.FC = () => {
       setTimeout(() => setShareStatus('idle'), 2000);
     } catch (err) {
       console.error("Error al copiar:", err);
+    }
+  };
+
+  const handleInstagramShare = async () => {
+    // Instagram no tiene una URL de compartir directa para la web.
+    // Usamos el API nativo de compartir si está disponible (ideal para móviles)
+    if (navigator.share && campaign) {
+      try {
+        await navigator.share({
+          title: campaign.titulo,
+          text: `Apoya esta causa en Donia: ${campaign.titulo}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        // El usuario canceló o hubo error, fallamos al copiado
+        copyToClipboard();
+      }
+    } else {
+      // En escritorio simplemente copiamos el link
+      copyToClipboard();
     }
   };
 
@@ -391,9 +412,10 @@ const CampaignDetail: React.FC = () => {
                   <div className="pt-4">
                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 block">Compartir</span>
                     <div className="flex gap-3">
-                      <button onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(campaign.titulo + " " + window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"><MessageCircle size={20} /></button>
-                      <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><Facebook size={20} /></button>
-                      <button onClick={copyToClipboard} className={`flex-1 aspect-square rounded-xl flex items-center justify-center transition-all ${shareStatus === 'copied' ? 'bg-emerald-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-600'}`}>{shareStatus === 'copied' ? <Check size={20} /> : <LinkIcon size={20} />}</button>
+                      <button onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(campaign.titulo + " " + window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all" title="Compartir en WhatsApp"><MessageCircle size={20} /></button>
+                      <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')} className="flex-1 aspect-square bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all" title="Compartir en Facebook"><Facebook size={20} /></button>
+                      <button onClick={handleInstagramShare} className="flex-1 aspect-square bg-pink-50 text-pink-600 rounded-xl flex items-center justify-center hover:bg-pink-600 hover:text-white transition-all" title="Compartir en Instagram"><Instagram size={20} /></button>
+                      <button onClick={copyToClipboard} className={`flex-1 aspect-square rounded-xl flex items-center justify-center transition-all ${shareStatus === 'copied' ? 'bg-emerald-600 text-white' : 'bg-violet-50 text-violet-600 hover:bg-violet-600'}`} title="Copiar enlace">{shareStatus === 'copied' ? <Check size={20} /> : <LinkIcon size={20} />}</button>
                     </div>
                   </div>
                 </div>
