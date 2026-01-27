@@ -627,7 +627,7 @@ const GenericOTPModal = ({
 
   const labels = {
     bank_account_update: { title: 'Confirmar Cuenta Bancaria', desc: 'Autoriza el cambio de tus datos para retiros.' },
-    phone_update: { title: 'Confirmar Nuevo Teléfono', desc: 'Valida tu nuevo número de contacto.' },
+    phone_update: { title: 'Confirmar Nuevo Celular', desc: 'Valida tu nuevo número de contacto.' },
     '2fa_toggle': { title: 'Cambiar Seguridad 2FA', desc: 'Confirma que deseas cambiar la protección de acceso.' },
     withdrawal_request: { title: 'Autorizar Retiro', desc: 'Ingresa el código enviado a tu correo para confirmar el retiro.' },
     cancel_campaign: { title: 'Confirmar Cancelación', desc: 'Ingresa el código enviado a tu correo para autorizar la cancelación de tu campaña con fondos.' }
@@ -992,7 +992,7 @@ const Dashboard: React.FC = () => {
   };
 
   const handlePhoneBlur = () => {
-    if (profileForm.phone && !validateChileanPhone(profileForm.phone)) setPhoneError("Teléfono inválido.");
+    if (profileForm.phone && !validateChileanPhone(profileForm.phone)) setPhoneError("Celular inválido.");
     else setPhoneError(null);
   };
 
@@ -1455,7 +1455,7 @@ const Dashboard: React.FC = () => {
                    <div className="flex justify-between items-center mb-12"><h3 className="text-4xl font-black text-slate-900 tracking-tighter">Tu Perfil</h3><button onClick={() => setIsEditingProfile(true)} className="flex items-center gap-2 px-6 py-2.5 bg-slate-50 text-slate-600 hover:text-violet-600 rounded-2xl font-black text-sm transition-all shadow-sm"><Edit3 size={18} /> Editar</button></div>
                    <div className="space-y-10">
                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Nombre Registrado</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.full_name || 'Sin registro'}</div></div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg">{profile?.rut || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Celular</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex items-center gap-2"><Phone size={16} className="text-violet-600" /> {profile?.phone || 'Sin registro'}</div></div></div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Región</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.region || 'Sin registro'}</div></div><div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Ciudad</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg truncate">{profile?.city || 'Sin registro'}</div></div></div>
                      <div className="pb-4"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Email de contacto</label><div className="p-6 bg-slate-50/50 border border-slate-100 rounded-[24px] font-black text-slate-900 text-lg flex justify-between items-center group cursor-not-allowed">{user?.email}<Lock size={18} className="text-slate-200" /></div></div>
                      <div className="pt-6 border-t border-slate-50">
@@ -1483,6 +1483,7 @@ const Dashboard: React.FC = () => {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">RUT</label>
                             <input 
                               type="text" 
+                              maxLength={12}
                               className={`w-full p-6 bg-slate-50 border-2 ${rutError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
                               value={profileForm.rut} 
                               onChange={e => setProfileForm({...profileForm, rut: formatRut(e.target.value)})} 
@@ -1492,15 +1493,23 @@ const Dashboard: React.FC = () => {
                             {rutError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{rutError}</p>}
                          </div>
                          <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Teléfono</label>
-                            <input 
-                              type="text" 
-                              className={`w-full p-6 bg-slate-50 border-2 ${phoneError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
-                              value={profileForm.phone} 
-                              onChange={e => setProfileForm({...profileForm, phone: formatPhone(e.target.value)})} 
-                              onBlur={handlePhoneBlur} 
-                              placeholder="+56 9 XXXX XXXX" 
-                            />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Celular</label>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-6 font-black text-slate-400 text-lg pointer-events-none">+56 9</span>
+                              <input 
+                                type="text" 
+                                maxLength={8}
+                                className={`w-full p-6 bg-slate-50 border-2 ${phoneError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-[24px] font-black text-lg transition-all`} 
+                                style={{ paddingLeft: '5.5rem' }}
+                                value={profileForm.phone.replace('+56 9 ', '').replace('+569', '')} 
+                                onChange={e => {
+                                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 8);
+                                  setProfileForm({...profileForm, phone: `+56 9 ${digitsOnly}`});
+                                }} 
+                                onBlur={handlePhoneBlur} 
+                                placeholder="XXXXXXXX" 
+                              />
+                            </div>
                             {phoneError && <p className="text-[11px] text-rose-600 font-bold mt-2 ml-1">{phoneError}</p>}
                          </div>
                        </div>
