@@ -23,7 +23,11 @@ import {
   User,
   ArrowRight,
   MapPin,
-  Send
+  Send,
+  Building,
+  Heart,
+  Handshake,
+  PawPrint
 } from 'lucide-react';
 import { useCampaign } from '../../context/CampaignContext';
 import { useAuth } from '../../context/AuthContext';
@@ -146,7 +150,6 @@ const CreateReview: React.FC = () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      // Ahora enviamos beneficiarioNombre y beneficiarioApellido por separado
       const result = await service.createCampaign({
         ...campaign,
         owner_id: currentUser.id
@@ -169,6 +172,17 @@ const CreateReview: React.FC = () => {
   }
 
   const allChecked = declarations.veraz && declarations.verificacion && declarations.pausar;
+
+  const getRelationIcon = (rel: string) => {
+    switch (rel) {
+      case 'Yo mismo': return User;
+      case 'Familiar': return Heart;
+      case 'Amigo': return Handshake;
+      case 'Organización': return Building;
+      case 'Mascota': return PawPrint;
+      default: return UserCheck;
+    }
+  };
 
   return (
     <>
@@ -193,7 +207,12 @@ const CreateReview: React.FC = () => {
                 <ReviewItem icon={Tag} label="Título" value={campaign.titulo || ''} onEdit={() => navigate('/crear/detalles')} />
                 <ReviewItem icon={HeartHandshake} label="Monto Objetivo" value={`$${campaign.monto?.toLocaleString('es-CL')} CLP`} onEdit={() => navigate('/crear/detalles')} />
                 <ReviewItem icon={MapPin} label="Ubicación" value={campaign.ubicacion || 'Chile'} onEdit={() => navigate('/crear/detalles')} />
-                <ReviewItem icon={UserCheck} label="Beneficiario" value={`${campaign.beneficiarioNombre} ${campaign.beneficiarioApellido}`} onEdit={() => navigate('/crear/detalles')} />
+                <ReviewItem 
+                  icon={getRelationIcon(campaign.beneficiarioRelacion || "Yo mismo")} 
+                  label="Destino de Fondos" 
+                  value={`${campaign.beneficiarioNombre} ${campaign.beneficiarioApellido}`} 
+                  onEdit={() => navigate('/crear/detalles')} 
+                />
                 <ReviewItem icon={Clock} label="Duración" value={`${campaign.duracionDias} Días`} onEdit={() => navigate('/crear/detalles')} />
               </div>
             </div>

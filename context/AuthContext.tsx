@@ -6,6 +6,7 @@ import { Profile } from '../types';
 
 interface AuthContextType {
   user: any | null;
+  internalUser: any | null;
   profile: Profile | null;
   setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
   loading: boolean;
@@ -19,10 +20,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
+  const [internalUser, setInternalUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Inicializamos el estado desde sessionStorage para mantener el bloqueo en F5
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
@@ -30,11 +31,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
+  const otpProcessingRef = useRef<string | null>(null);
 
   const set2FAWaitingStatus = (waiting: boolean) => {
     setIs2FAWaiting(waiting);
     if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
-    else sessionStorage.removeItem('donia_2fa_lock');
+    else {
+      sessionStorage.removeItem('donia_2fa_lock');
+      otpProcessingRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -51,13 +56,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Cargar sesión inicial de forma silenciosa
         const { data: { session } } = await client.auth.getSession();
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
-          setUser(session.user);
+          setInternalUser(session.user);
           setProfile(p);
+          
+          const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
+          const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
+
+          // REGLA: 2FA solo para no-Google
+          if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
+            setUser(null);
+            set2FAWaitingStatus(true);
+          } else {
+            setUser(session.user);
+            set2FAWaitingStatus(false);
+          }
         }
+        
         if (mountedRef.current) setLoading(false);
 
         const { data } = (client.auth as any).onAuthStateChange(async (event, session) => {
@@ -67,26 +84,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (currentUser) {
-              // IMPORTANTE: No activamos el bloqueo aquí automáticamente.
-              // El bloqueo solo se activa desde el componente Auth.tsx durante el flujo de login.
-              // Aquí solo actualizamos los datos de identidad.
               const p = await authService.fetchProfile(currentUser.id);
-              setUser(currentUser);
+              setInternalUser(currentUser);
               setProfile(p);
+
+              const isGoogle = currentUser.app_metadata?.provider === 'google' || currentUser.app_metadata?.providers?.includes('google');
+              const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
+
+              // REGLA: 2FA solo para no-Google
+              if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
+                set2FAWaitingStatus(true);
+                setUser(null);
+                
+                if (otpProcessingRef.current !== currentUser.id) {
+                  otpProcessingRef.current = currentUser.id;
+                  try {
+                    await fetch('/api/security-otp', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        userId: currentUser.id, 
+                        type: 'login_2fa',
+                        email: currentUser.email 
+                      })
+                    });
+                  } catch (otpErr) {
+                    otpProcessingRef.current = null;
+                  }
+                }
+              } else {
+                setUser(currentUser);
+                set2FAWaitingStatus(false);
+              }
             }
           }
           
           if (event === 'SIGNED_OUT') {
             setUser(null);
+            setInternalUser(null);
             setProfile(null);
             set2FAWaitingStatus(false);
+            sessionStorage.removeItem('donia_2fa_verified');
+            otpProcessingRef.current = null;
           }
         });
 
         subscription = data.subscription;
 
       } catch (error) {
-        console.error("[AUTH] Error inicialización:", error);
         if (mountedRef.current) setLoading(false);
       }
     };
@@ -105,8 +150,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       setUser(null);
+      setInternalUser(null);
       setProfile(null);
       set2FAWaitingStatus(false);
+      sessionStorage.removeItem('donia_2fa_verified');
+      otpProcessingRef.current = null;
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {
@@ -115,15 +163,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshProfile = async () => {
-    if (user && mountedRef.current && !isSigningOut.current) {
-      const p = await authService.fetchProfile(user.id);
+    if (internalUser && mountedRef.current && !isSigningOut.current) {
+      const p = await authService.fetchProfile(internalUser.id);
       setProfile(p);
     }
   };
-
-  // El usuario expuesto es null si estamos esperando el 2FA, 
-  // lo que protege las vistas privadas y el Header.
-  const exposedUser = is2FAWaiting ? null : user;
 
   if (loading) {
     return (
@@ -136,7 +180,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ 
-      user: exposedUser, 
+      user, 
+      internalUser,
       profile, 
       setProfile, 
       loading, 

@@ -22,11 +22,23 @@ import {
   Heart,
   X,
   Plus,
-  Star
+  Star,
+  User,
+  Handshake,
+  Building,
+  PawPrint
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignData } from '../types';
+
+const RELATION_HELPERS: Record<string, { text: string, icon: any }> = {
+  'Yo mismo': { text: 'Los fondos se transferirán directamente al creador de la campaña.', icon: User },
+  'Familiar': { text: 'El creador recibirá los fondos y se compromete a entregarlos al beneficiario.', icon: Heart },
+  'Amigo': { text: 'El creador recibirá los fondos y se compromete a entregarlos al beneficiario.', icon: Handshake },
+  'Organización': { text: 'El creador recibirá los fondos y se compromete a entregarlos a la organización declarada.', icon: Building },
+  'Mascota': { text: 'Los fondos están destinados estrictamente a gastos veterinarios y cuidados.', icon: PawPrint }
+};
 
 const ComparisonModal = ({ original, polished, onAccept, onClose, isProcessing }: any) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -43,7 +55,6 @@ const ComparisonModal = ({ original, polished, onAccept, onClose, isProcessing }
             <p className="text-slate-500 font-medium text-sm">Mejorando la estructura y el impacto de tu relato.</p>
           </div>
         </div>
-        {/* Espacio reservado para el botón X en desktop */}
         <div className="md:pr-12"></div>
       </div>
       <div className="flex-grow overflow-y-auto p-8">
@@ -184,6 +195,8 @@ const EditCampaign: React.FC = () => {
     }
   };
 
+  const currentHelper = RELATION_HELPERS[formData.beneficiarioRelacion] || RELATION_HELPERS['Yo mismo'];
+
   if (loading) return <div className="flex flex-col items-center justify-center min-h-[60vh]"><Loader2 className="w-10 h-10 animate-spin text-violet-600 mb-4" /></div>;
 
   return (
@@ -196,7 +209,6 @@ const EditCampaign: React.FC = () => {
         />
       )}
 
-      {/* Mensaje de Éxito Flotante */}
       {success && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-bottom-8 duration-500">
            <div className="bg-emerald-500 text-white px-8 py-4 rounded-[24px] shadow-2xl flex items-center gap-3 border border-emerald-400">
@@ -273,6 +285,40 @@ const EditCampaign: React.FC = () => {
                    <button onClick={() => { setIsAiProcessing(true); setShowAiModal(true); service.polishStory(formData.historia).then(setPolishedProposal).finally(() => setIsAiProcessing(false)); }} className="text-[10px] font-black text-violet-600 uppercase tracking-widest hover:underline">Pulir con IA</button>
                 </div>
                 <textarea rows={8} className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-[32px] outline-none font-medium leading-relaxed resize-none" value={formData.historia} onChange={(e) => setFormData({ ...formData, historia: e.target.value })} />
+              </div>
+           </div>
+        </div>
+
+        {/* Nueva Sección de Destino de los Fondos en Edición */}
+        <div className="bg-white rounded-[40px] border border-slate-100 p-8 shadow-sm">
+           <div className="flex items-center gap-3 mb-6">
+              <ShieldCheck size={24} className="text-violet-600" />
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Destino de los Fondos</h2>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Nombre del beneficiario</label>
+                 <input type="text" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl outline-none font-bold" value={formData.beneficiarioNombre} onChange={(e) => setFormData({ ...formData, beneficiarioNombre: e.target.value })} />
+              </div>
+              <div>
+                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Relación declarada</label>
+                 <select className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl outline-none font-bold" value={formData.beneficiarioRelacion} onChange={(e) => setFormData({ ...formData, beneficiarioRelacion: e.target.value })}>
+                   <option value="Yo mismo">Yo mismo</option>
+                   <option value="Familiar">Familiar</option>
+                   <option value="Amigo">Amigo</option>
+                   <option value="Organización">Organización</option>
+                   <option value="Mascota">Mascota</option>
+                 </select>
+              </div>
+           </div>
+           {/* Helper Dinámico */}
+           <div className="p-5 bg-violet-50 border border-violet-100 rounded-2xl flex items-start gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-violet-600 shadow-sm shrink-0">
+                 <currentHelper.icon size={20} />
+              </div>
+              <div>
+                 <p className="text-sm font-bold text-violet-900 leading-tight">{currentHelper.text}</p>
+                 <p className="text-[10px] text-violet-700/60 font-medium mt-1 uppercase tracking-wider">Aviso de responsabilidad del creador</p>
               </div>
            </div>
         </div>

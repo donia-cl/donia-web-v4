@@ -21,11 +21,30 @@ export default async function handler(req: any, res: any) {
     Validator.required(userId, 'userId');
     Validator.required(type, 'type');
 
-    const { data: authUser } = await (supabase.auth as any).admin.getUserById(userId);
-    const email = authUser?.user?.email || providedEmail;
-    if (!email) throw new Error("Usuario no encontrado.");
+    // PRIORIDAD: Si el frontend ya nos manda el email (muy útil para Google Login), lo usamos.
+    // Si no, intentamos buscarlo via Admin SDK de Supabase.
+    let email = providedEmail;
+    if (!email) {
+      try {
+        const { data: authUser } = await (supabase.auth as any).admin.getUserById(userId);
+        email = authUser?.user?.email;
+      } catch (err) {
+        logger.warn('USER_LOOKUP_FAIL', { userId });
+      }
+    }
 
-    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+    if (!email) {
+      throw new Error("No se pudo determinar el destinatario del código de seguridad.");
+    }
+
+    // Intentar obtener el nombre del perfil, pero no bloquear si falla
+    let name = 'Usuario';
+    try {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
+      if (profile?.full_name) name = profile.full_name;
+    } catch (pErr) {
+      logger.warn('PROFILE_NAME_LOOKUP_FAIL', { userId });
+    }
     
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); 
@@ -37,20 +56,22 @@ export default async function handler(req: any, res: any) {
     if (type === 'withdrawal_request') actionDesc = 'autorizar el retiro de fondos de tu campaña';
     if (type === 'cancel_campaign') actionDesc = 'cancelar definitivamente tu campaña activa';
 
+    // Guardar OTP en BD
     await supabase.from('security_otps').delete().eq('user_id', userId).eq('type', type);
     await supabase.from('security_otps').insert([{ user_id: userId, code: otpCode, type: type, expires_at: expiresAt }]);
 
+    // Enviar correo
     if (type === 'login_2fa') {
-      await Mailer.send2FACode(email, profile?.full_name || 'Usuario', otpCode);
+      await Mailer.send2FACode(email, name, otpCode);
     } else {
-      await Mailer.sendSecurityOTP(email, profile?.full_name || 'Usuario', otpCode, actionDesc);
+      await Mailer.sendSecurityOTP(email, name, otpCode, actionDesc);
     }
     
-    logger.info('SECURITY_OTP_REQUESTED', { userId, type, email });
+    logger.info('SECURITY_OTP_SENT', { userId, type, email });
     return res.status(200).json({ success: true, message: "Código enviado" });
 
   } catch (error: any) {
     logger.error('SECURITY_OTP_ERROR', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 }

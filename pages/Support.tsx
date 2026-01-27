@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Send, Mail, MessageSquare, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Send, Mail, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Support: React.FC = () => {
@@ -189,44 +189,34 @@ const Support: React.FC = () => {
 
           {/* Sidebar Info */}
           <div className="md:col-span-5 space-y-6">
-             <div className="bg-sky-50 p-8 rounded-[32px] border border-sky-100">
-                <div className="w-12 h-12 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center mb-6">
-                   <MessageSquare size={24} />
-                </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">Chat en vivo</h3>
-                <p className="text-slate-600 font-medium text-sm mb-6 leading-relaxed">
-                  ¿Necesitas ayuda inmediata? Nuestro equipo está disponible de Lunes a Viernes, 9:00 a 18:00 hrs.
+             <div className="p-8 border border-slate-100 rounded-[32px] bg-slate-50/50 shadow-sm">
+                <h3 className="font-black text-slate-900 mb-4 text-lg">Preguntas Frecuentes</h3>
+                <p className="text-slate-500 text-sm font-medium mb-6 leading-relaxed">
+                  Antes de enviarnos un mensaje, te invitamos a revisar nuestra sección de dudas comunes donde podrías encontrar una solución inmediata.
                 </p>
-                <button 
-                  onClick={() => alert("El chat en vivo estará disponible pronto.")}
-                  className="w-full py-3 bg-white text-sky-600 rounded-xl font-black text-sm border border-sky-200 hover:bg-sky-600 hover:text-white transition-all shadow-sm"
-                >
-                  Iniciar chat (Pronto)
-                </button>
-             </div>
-
-             <div className="p-8 border border-slate-100 rounded-[32px]">
-                <h3 className="font-black text-slate-900 mb-4">Preguntas Frecuentes</h3>
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                    <li>
-                     <button onClick={() => navigate('/ayuda')} className="text-sm font-medium text-slate-500 hover:text-violet-600 hover:underline text-left">
+                     <button onClick={() => navigate('/ayuda')} className="text-sm font-bold text-slate-600 hover:text-violet-600 hover:underline text-left flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                        ¿Cómo retiro mis fondos?
                      </button>
                    </li>
                    <li>
-                     <button onClick={() => navigate('/ayuda')} className="text-sm font-medium text-slate-500 hover:text-violet-600 hover:underline text-left">
+                     <button onClick={() => navigate('/ayuda')} className="text-sm font-bold text-slate-600 hover:text-violet-600 hover:underline text-left flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                        ¿Es seguro donar aquí?
                      </button>
                    </li>
                    <li>
-                     <button onClick={() => navigate('/ayuda')} className="text-sm font-medium text-slate-500 hover:text-violet-600 hover:underline text-left">
+                     <button onClick={() => navigate('/ayuda')} className="text-sm font-bold text-slate-600 hover:text-violet-600 hover:underline text-left flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                        ¿Qué comisiones cobran?
                      </button>
                    </li>
                 </ul>
                 <button 
                   onClick={() => navigate('/ayuda')}
-                  className="mt-6 text-violet-600 font-black text-xs uppercase tracking-widest hover:underline"
+                  className="w-full mt-8 py-3 bg-violet-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 transition-all shadow-md"
                 >
                   Ver Centro de Ayuda
                 </button>

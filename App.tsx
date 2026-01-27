@@ -1,7 +1,8 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { CampaignProvider } from './context/CampaignContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
 import Landing from './pages/Landing';
@@ -21,11 +22,29 @@ import CreateReview from './pages/wizard/Review';
 import Help from './pages/Help';
 import Support from './pages/Support';
 
+// Componente para gestionar la redirección automática de seguridad (2FA)
+const SecurityGuard: React.FC = () => {
+  const { is2FAWaiting } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Si estamos esperando 2FA y no estamos en la página de login, redirigir
+    if (is2FAWaiting && location.pathname !== '/login') {
+      console.log("[SECURITY] Redirigiendo a verificación de seguridad...");
+      navigate('/login', { replace: true });
+    }
+  }, [is2FAWaiting, location.pathname, navigate]);
+
+  return null;
+};
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <CampaignProvider>
         <Router>
+          <SecurityGuard />
           <ScrollToTop />
           <Layout>
             <Routes>
