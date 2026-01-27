@@ -59,9 +59,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Mi Perfil';
   const displayInitial = displayName.charAt(0).toUpperCase();
 
-  // Mostrar banner si el usuario está logueado pero no verificado y no es de Google
+  // LÓGICA DE VERIFICACIÓN UNIFICADA: 
+  // Solo ocultamos el banner si es Google o si is_verified es explícitamente TRUE.
   const isGoogle = user?.app_metadata?.provider === 'google' || user?.app_metadata?.providers?.includes('google');
-  const showVerifyBanner = user && !profile?.email_verified && !isGoogle;
+  const showVerifyBanner = user && profile && profile.is_verified !== true && !isGoogle;
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -70,10 +71,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
               <div className="flex items-center gap-2">
                 <MailWarning size={16} />
-                <span className="text-xs font-black uppercase tracking-widest">Cuenta no verificada</span>
+                <span className="text-xs font-black uppercase tracking-widest">Cuenta pendiente de activación</span>
               </div>
               <p className="text-[11px] font-bold opacity-90">
-                Para publicar campañas y recibir fondos debes validar tu correo electrónico.
+                Revisa tu correo para validar tu identidad y poder publicar campañas.
               </p>
               <button 
                 onClick={handleResendEmail}

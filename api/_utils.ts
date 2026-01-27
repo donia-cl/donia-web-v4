@@ -117,37 +117,36 @@ export class Mailer {
    */
   static async generateAndSendVerification(supabase: any, userId: string, email: string, fullName: string, req?: any) {
     try {
-      // 1. Limpiar cualquier token pendiente no consumido para este usuario
-      await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
+      // 1. Eliminar cualquier token previo para evitar basura en la tabla
+      const { error: delError } = await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
+      if (delError) logger.warn('VERIFICATION_CLEANUP_WARN', delError, { userId });
 
-      // 2. Crear nuevo token de verificación (expires_at es opcional si el default es bueno, pero mejor explicitar)
-      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48 horas
-      
+      // 2. Crear nuevo token
       const { data: verification, error: vError } = await supabase
         .from('email_verifications')
         .insert([{ 
           user_id: userId, 
-          expires_at: expiresAt
+          expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() 
         }])
         .select()
         .single();
 
       if (vError) {
-        logger.error('DB_INSERT_VERIFICATION_TOKEN_FAIL', vError, { userId });
+        logger.error('VERIFICATION_DB_INSERT_FAIL', vError, { userId });
         throw vError;
       }
 
-      // 3. Construir link
+      // 3. Construir link de activación
       const baseUrl = getCanonicalBackendBaseUrl(req);
       const verifyLink = `${baseUrl}/api/verify-token?token=${verification.token}`;
       
       // 4. Enviar vía Resend
       await this.sendAccountVerification(email, fullName, verifyLink);
       
-      logger.info('VERIFICATION_WORKFLOW_SUCCESS', { email, userId, tokenId: verification.id });
+      logger.info('VERIFICATION_EMAIL_SUCCESSFULLY_TRIGGERED', { email, userId, token: verification.token.substring(0, 8) + '...' });
       return true;
     } catch (err) {
-      logger.error('VERIFICATION_WORKFLOW_FAIL', err, { userId, email });
+      logger.error('VERIFICATION_COMPLETE_FLOW_FAIL', err, { userId, email });
       return false;
     }
   }
