@@ -362,7 +362,7 @@ const ReceiptModal = ({ donation, profileName, onClose }: { donation: Donation, 
               <span className="text-base font-black text-slate-900">${(donation.amountFee || 0).toLocaleString('es-CL')}</span>
             </div>
             <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-center">
-              <span className="text-[9px] font-black text-slate-900 uppercase tracking-[0.15em]">TOTAL PAGADO</span>
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest tracking-[0.15em]">TOTAL PAGADO</span>
               <span className="text-3xl font-black text-slate-900 tracking-tighter">${(donation.amountTotal || 0).toLocaleString('es-CL')}</span>
             </div>
           </div>
@@ -1080,7 +1080,7 @@ const Dashboard: React.FC = () => {
               { id: 'resumen', label: 'Mis Campañas', icon: BarChart3 }, 
               { id: 'donaciones', label: 'Mis Donaciones', icon: HeartHandshake }, 
               { id: 'finanzas', label: 'Finanzas', icon: Wallet }, 
-              { id: 'seguridad', label: 'Seguridad', icon: ShieldCheck, alert: !isVerified }, 
+              { id: 'seguridad', label: 'Seguridad', icon: ShieldCheck, alert: hasPendingAction }, 
               { id: 'perfil', label: 'Perfil', icon: UserIcon, alert: !isProfileComplete } 
             ].map(tab => (
               <button 
@@ -1351,27 +1351,31 @@ const Dashboard: React.FC = () => {
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
              <div className="bg-white rounded-[48px] border border-slate-100 p-10 md:p-14 shadow-2xl shadow-slate-100 relative overflow-hidden">
                
-               {/* BANNER DE ACCIÓN REQUERIDA */}
+               {/* BANNER DE ACCIÓN REQUERIDA (Colores Donia - Violetas) */}
                {(!isVerified || !isProfileComplete) && (
-                 <div className="mb-10 bg-amber-50 border border-amber-200 p-8 rounded-[32px] flex items-start gap-6 animate-in slide-in-from-top-4">
-                    <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+                 <div className="mb-10 bg-violet-50 border border-violet-100 p-8 rounded-[32px] flex items-start gap-6 animate-in slide-in-from-top-4">
+                    <div className="w-14 h-14 bg-white text-violet-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
                        <Sparkles size={28} />
                     </div>
                     <div className="flex-grow">
-                       <h4 className="text-amber-900 font-black uppercase text-xs tracking-widest mb-1">Pasos pendientes</h4>
-                       <p className="text-amber-800 text-sm font-medium leading-relaxed">
-                          Para poder publicar campañas y retirar fondos, debes:
-                          <span className="block mt-2 font-black">• {!isVerified && 'Validar tu correo electrónico.'}</span>
-                          <span className="block font-black">• {!isProfileComplete && 'Completar tus datos en la pestaña de Perfil.'}</span>
+                       <h4 className="text-violet-900 font-black uppercase text-xs tracking-widest mb-1">Acciones Requeridas</h4>
+                       <p className="text-violet-800 text-sm font-medium leading-relaxed">
+                          Para garantizar la transparencia y seguridad de tus recaudaciones, necesitas completar lo siguiente:
+                          <span className={`block mt-2 font-black ${!isVerified ? 'text-rose-600' : 'text-emerald-600 opacity-60'}`}>
+                            • {!isVerified ? 'Debes verificar tu correo electrónico.' : 'Correo electrónico verificado.'}
+                          </span>
+                          <span className={`block font-black ${!isProfileComplete ? 'text-rose-600' : 'text-emerald-600 opacity-60'}`}>
+                            • {!isProfileComplete ? 'Debes completar tu perfil (RUT y Teléfono).' : 'Perfil completo.'}
+                          </span>
                        </p>
                        {!isVerified && (
                           <button 
                             onClick={handleResendEmail}
                             disabled={resendingEmail || resendSent}
-                            className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-700 hover:text-amber-900 underline transition-colors disabled:opacity-50"
+                            className="mt-5 bg-violet-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
                           >
                              {resendingEmail ? <Loader2 className="animate-spin" size={12} /> : <RefreshCw size={12} />}
-                             {resendSent ? 'Correo reenviado con éxito' : 'Reenviar activación al correo'}
+                             {resendSent ? 'Correo reenviado' : 'Reenviar activación'}
                           </button>
                        )}
                     </div>
@@ -1396,19 +1400,21 @@ const Dashboard: React.FC = () => {
                         </div>
                      </div>
                      
-                     <div className="flex flex-col items-end gap-2">
+                     <div className="flex flex-col items-end gap-2 text-right">
                         <div className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border transition-colors ${isVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'}`}>
                            {isGoogleUser ? 'GOOGLE' : isVerified ? 'VERIFICADO' : 'VERIFICACIÓN PENDIENTE'} 
                            {isVerified ? <CheckCircle2 size={12} /> : <MailWarning size={12} />}
                         </div>
                         {!isVerified && !isGoogleUser && (
-                           <button 
-                             onClick={handleResendEmail} 
-                             disabled={resendingEmail || resendSent}
-                             className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 transition-colors mr-1 underline disabled:opacity-50"
-                           >
-                              {resendingEmail ? 'Enviando...' : resendSent ? 'Correo enviado' : 'Reenviar correo de activación'}
-                           </button>
+                           <div className="flex flex-col items-end">
+                              <button 
+                                onClick={handleResendEmail} 
+                                disabled={resendingEmail || resendSent}
+                                className="text-[9px] font-black uppercase tracking-widest text-rose-600 hover:text-rose-700 transition-colors mr-1 underline disabled:opacity-50"
+                              >
+                                 {resendingEmail ? 'Reenviando...' : resendSent ? 'Correo enviado' : 'Reenviar correo de activación'}
+                              </button>
+                           </div>
                         )}
                      </div>
                   </div>
