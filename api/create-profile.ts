@@ -21,8 +21,9 @@ export default async function handler(req: any, res: any) {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const { data: existing } = await supabase.from('profiles').select('id').eq('id', id).maybeSingle();
+    const { data: existing } = await supabase.from('profiles').select('id, email_verified').eq('id', id).maybeSingle();
 
+    // 1. Crear o actualizar perfil
     const { error } = await supabase
       .from('profiles')
       .upsert({
@@ -33,19 +34,29 @@ export default async function handler(req: any, res: any) {
 
     if (error) throw error;
 
-    if (!existing) {
+    // 2. Si es un perfil nuevo o no está verificado, enviar validación
+    if (!existing || !existing.email_verified) {
       try {
         const { data: authUser } = await (supabase.auth as any).admin.getUserById(id);
         if (authUser?.user?.email) {
-          await Mailer.sendWelcomeNotification(authUser.user.email, fullName || 'Usuario', req);
+          // Disparar proceso de verificación unificado
+          await Mailer.generateAndSendVerification(
+            supabase, 
+            id, 
+            authUser.user.email, 
+            fullName || 'Usuario',
+            req
+          );
+          logger.info('AUTO_VERIFICATION_MAIL_SENT_ON_CREATE', { userId: id, email: authUser.user.email });
         }
       } catch (mailErr) {
-        logger.error('WELCOME_MAIL_ERROR', mailErr);
+        logger.error('AUTO_VERIFICATION_MAIL_ERROR', mailErr);
       }
     }
 
     return res.status(200).json({ success: true });
   } catch (error: any) {
+    logger.error('CREATE_PROFILE_API_ERROR', error);
     return res.status(500).json({ error: error.message });
   }
 }

@@ -11,6 +11,7 @@ interface AuthContextType {
   setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
   loading: boolean;
   is2FAWaiting: boolean;
+  isVerificationWaiting: boolean; // Nuevo estado
   set2FAWaiting: (waiting: boolean) => void;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -27,6 +28,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [is2FAWaiting, setIs2FAWaiting] = useState(() => {
     return sessionStorage.getItem('donia_2fa_lock') === 'true';
   });
+
+  const [isVerificationWaiting, setIsVerificationWaiting] = useState(false);
   
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
@@ -65,12 +68,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-          // REGLA: 2FA solo para no-Google
-          if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
+          // REGLA 1: VALIDACIÓN DE EMAIL (Obligatoria para todos)
+          if (p && !p.email_verified) {
+             setUser(null);
+             setIsVerificationWaiting(true);
+             set2FAWaitingStatus(false);
+          } 
+          // REGLA 2: 2FA solo para no-Google
+          else if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
+            setIsVerificationWaiting(false);
             set2FAWaitingStatus(true);
           } else {
             setUser(session.user);
+            setIsVerificationWaiting(false);
             set2FAWaitingStatus(false);
           }
         }
@@ -91,9 +102,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const isGoogle = currentUser.app_metadata?.provider === 'google' || currentUser.app_metadata?.providers?.includes('google');
               const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-              // REGLA: 2FA solo para no-Google
-              if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
+              // REGLA 1: EMAIL VERIFIED
+              if (p && !p.email_verified) {
+                setUser(null);
+                setIsVerificationWaiting(true);
+                set2FAWaitingStatus(false);
+              }
+              // REGLA 2: 2FA
+              else if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
                 set2FAWaitingStatus(true);
+                setIsVerificationWaiting(false);
                 setUser(null);
                 
                 if (otpProcessingRef.current !== currentUser.id) {
@@ -114,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               } else {
                 setUser(currentUser);
+                setIsVerificationWaiting(false);
                 set2FAWaitingStatus(false);
               }
             }
@@ -124,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setInternalUser(null);
             setProfile(null);
             set2FAWaitingStatus(false);
+            setIsVerificationWaiting(false);
             sessionStorage.removeItem('donia_2fa_verified');
             otpProcessingRef.current = null;
           }
@@ -153,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInternalUser(null);
       setProfile(null);
       set2FAWaitingStatus(false);
+      setIsVerificationWaiting(false);
       sessionStorage.removeItem('donia_2fa_verified');
       otpProcessingRef.current = null;
       await authService.signOut();
@@ -166,6 +187,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (internalUser && mountedRef.current && !isSigningOut.current) {
       const p = await authService.fetchProfile(internalUser.id);
       setProfile(p);
+      // Al refrescar, validamos si cambió el estado de verificación
+      if (p?.email_verified) {
+        setIsVerificationWaiting(false);
+        setUser(internalUser);
+      }
     }
   };
 
@@ -185,7 +211,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profile, 
       setProfile, 
       loading, 
-      is2FAWaiting, 
+      is2FAWaiting,
+      isVerificationWaiting,
       set2FAWaiting: set2FAWaitingStatus,
       signOut, 
       refreshProfile 
