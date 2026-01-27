@@ -221,14 +221,6 @@ const Support: React.FC = () => {
                   Ver Centro de Ayuda
                 </button>
              </div>
-
-             <div className="p-8 bg-slate-900 rounded-[32px] text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/20 rounded-full blur-2xl -mr-16 -mt-16"></div>
-                <h4 className="font-black text-sm uppercase tracking-[0.2em] mb-4 text-violet-400">Transparencia</h4>
-                <p className="text-xs font-medium text-slate-400 leading-relaxed">
-                  En Donia procesamos cada solicitud con el máximo rigor para garantizar que los fondos lleguen a quienes realmente los necesitan.
-                </p>
-             </div>
           </div>
 
         </div>
