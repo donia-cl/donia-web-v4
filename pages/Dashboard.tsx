@@ -5,7 +5,7 @@ import {
   User as UserIcon, Users, Copy, Eye, Banknote, ArrowDownToLine, Mail, Check, Info, Lock, 
   ArrowRight, HeartHandshake, Save, X, Timer, MapPin, Building, TrendingUp, Shield, Printer,
   ChevronRight, Calendar, Send, FileText, Landmark, AlertCircle, Key, Fingerprint,
-  ShieldAlert, LogOut, ShieldQuestion, Phone, Download, AlertTriangle, XCircle,
+  LogOut, ShieldQuestion, Phone, Download, AlertTriangle, XCircle,
   Pause, Play, RefreshCw, Undo2, MailWarning, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -493,35 +493,39 @@ const CancelCampaignModal = ({
   );
 };
 
-const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm: () => void }) => (
-  <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-    <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-      <div className="p-8 text-center">
-        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
-          <Landmark size={32} />
-        </div>
-        <h3 className="text-2xl font-black text-slate-900 mb-2">Faltan datos bancarios</h3>
-        <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
-          Para solicitar un retiro, primero debes configurar la cuenta donde recibiremos el dinero recaudado.
-        </p>
-        <div className="space-y-3">
-          <button 
-            onClick={onConfirm} 
-            className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
-          >
-            Configurar ahora
-          </button>
-          <button 
-            onClick={onClose} 
-            className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
-          >
-            Quizás más tarde
-          </button>
+const BankAlertModal = ({ onClose, onConfirm }: { onClose: () => void, onConfirm: () => void }) => {
+  const { loading } = useAuth();
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
+            <Landmark size={32} />
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 mb-2">Faltan datos bancarios</h3>
+          <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
+            Para solicitar un retiro, primero debes configurar la cuenta donde recibiremos el dinero recaudado.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={onConfirm} 
+              className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-xl transition-all active:scale-95"
+            >
+              Configurar ahora
+            </button>
+            <button 
+              onClick={onClose} 
+              disabled={loading} 
+              className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600"
+            >
+              Quizás más tarde
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const WithdrawalConfirmModal = ({ 
   onClose, 
@@ -1248,7 +1252,7 @@ const Dashboard: React.FC = () => {
                       <button 
                         onClick={() => handleWithdrawalRequest(c.id, c.saldoCobrable)} 
                         disabled={actionLoading === c.id} 
-                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 shadow-lg active:scale-95 disabled:opacity-50"
+                        className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-violet-600 text-white rounded-[24px] font-black text-sm uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
                       >
                         {actionLoading === c.id ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
                         Cobrar Fondos
@@ -1419,7 +1423,6 @@ const Dashboard: React.FC = () => {
                     <div className="p-8 bg-violet-50/50 rounded-[32px] border border-violet-100 flex items-center gap-6 animate-in slide-in-from-top-2"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm text-violet-600"><Info size={32} /></div><div><p className="text-lg font-black text-violet-900 mb-1">Cuenta vinculada con Google</p><p className="text-sm text-violet-700/70 font-medium leading-relaxed max-w-lg">Tu seguridad es gestionada externamente por Google. Las funciones de contraseña y 2FA local están deshabilitadas.</p></div></div>
                   )}
                </div>
-               <div className="mt-14 pt-10 border-t border-slate-50"><div className="bg-rose-50/50 rounded-[32px] border border-rose-100 p-8 shadow-sm relative overflow-hidden group"><div className="flex items-start gap-6 relative z-10"><div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0"><ShieldAlert size={32} /></div><div className="space-y-4"><div><h4 className="text-2xl font-black text-rose-900 mb-1">Zona Crítica</h4><p className="text-base text-rose-700 font-medium leading-relaxed">Si sospechas acceso no autorizado, solicita el cierre global.</p></div><button onClick={() => setNotification({ title: "Acción en desarrollo", desc: "El cierre global de sesiones es una función administrativa. Nuestro equipo de soporte procesará tu solicitud en breve si confirmas mediante correo.", type: "info" })} className="text-sm font-black text-rose-600 uppercase tracking-[0.15em] hover:underline">Solicitar cierre de sesiones globales</button></div></div></div></div>
              </div>
           </div>
         )}

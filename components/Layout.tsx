@@ -100,12 +100,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     {resendSent ? 'Enviado' : 'Reenviar Activación'}
                   </button>
                 )}
-                <button 
-                  onClick={() => navigate('/dashboard?tab=' + (!isVerified ? 'seguridad' : 'perfil'))}
-                  className="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl active:scale-95"
-                >
-                  Ir ahora <ChevronDown size={12} className="-rotate-90" />
-                </button>
               </div>
            </div>
         </div>
