@@ -30,8 +30,14 @@ export class AuthService {
     return AuthService.instance;
   }
 
+  /**
+   * Obtiene la URL base para redirecciones de Auth (OAuth, Verificación).
+   * Devuelve el origen exacto SIN barra diagonal final para asegurar la coincidencia
+   * con la lista de "Additional Redirect URLs" de Supabase.
+   */
   private getCanonicalUrl(): string {
     const origin = window.location.origin;
+    // Eliminamos cualquier slash final para consistencia con la configuración de Supabase
     return origin.replace(/\/$/, '');
   }
 
@@ -90,28 +96,8 @@ export class AuthService {
   public async signUp(email: string, password: string, fullName: string): Promise<any> {
     await this.initialize();
     if (this.client) {
-      // 1. Registro en Supabase
-      const { data, error } = await this.client.auth.signUp({ 
-        email, 
-        password, 
-        options: { data: { full_name: fullName } } 
-      });
+      const { data, error } = await this.client.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
       if (error) throw error;
-
-      // 2. Crear perfil y disparar correo de validación vía API propia
-      if (data.user) {
-        try {
-          await fetch('/api/create-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: data.user.id, fullName })
-          });
-        } catch (profileErr) {
-          console.error("Error creating profile during signup:", profileErr);
-          // No lanzamos error para no bloquear el registro de Supabase
-        }
-      }
-
       return data;
     }
     throw new Error('Sin conexión');
@@ -120,6 +106,7 @@ export class AuthService {
   public async signInWithGoogle(): Promise<any> {
     await this.initialize();
     if (this.client) {
+      // Usamos el origen limpio (ej: https://staging.donia.cl)
       const redirectTo = this.getCanonicalUrl();
       
       const { data, error } = await this.client.auth.signInWithOAuth({ 

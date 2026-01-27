@@ -1,12 +1,13 @@
 
+// Import React to resolve namespace errors for FC and FormEvent
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Heart, RefreshCw, Send, CheckCircle2, ArrowLeft, ShieldCheck, Fingerprint, Key, Sparkles, Check, Inbox } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Heart, RefreshCw, Send, CheckCircle2, ArrowLeft, ShieldCheck, Fingerprint, Key, Sparkles, Check } from 'lucide-react';
 import { AuthService } from '../services/AuthService';
 import { useAuth } from '../context/AuthContext';
 
 const Auth: React.FC = () => {
-  const { is2FAWaiting, set2FAWaiting, isVerificationWaiting, signOut, internalUser, refreshProfile } = useAuth();
+  const { is2FAWaiting, set2FAWaiting, signOut, internalUser } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -15,9 +16,11 @@ const Auth: React.FC = () => {
   const [resendingInNotice, setResendingInNotice] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   
+  // Estados para el flujo 2FA
   const [is2FAStep, setIs2FAStep] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
 
+  // Estados para Recuperación de Contraseña
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [recoveryStep, setRecoveryStep] = useState<'email' | 'otp' | 'new_password'>('email');
   const [recoveryEmail, setRecoveryEmail] = useState('');
@@ -34,6 +37,8 @@ const Auth: React.FC = () => {
     fullName: ''
   });
 
+  // EFECTO CRÍTICO: Si el contexto global dice que estamos esperando 2FA, 
+  // activamos la vista de OTP automáticamente (incluso tras redirect de Google)
   useEffect(() => {
     if (is2FAWaiting && !is2FAStep) {
       setIs2FAStep(true);
@@ -67,9 +72,13 @@ const Auth: React.FC = () => {
       const result = await resp.json();
       if (!result.success) throw new Error(result.error);
       
+      // MARCAR COMO VERIFICADO: Esto evita que el initializeAuth (F5) nos vuelva a bloquear
       sessionStorage.setItem('donia_2fa_verified', 'true');
+      
+      // Código correcto: Liberamos el bloqueo en el contexto global
       set2FAWaiting(false);
       
+      // Proceder al dashboard
       const from = (location.state as any)?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     } catch (err: any) {
@@ -81,6 +90,7 @@ const Auth: React.FC = () => {
   const cancel2FALogin = async () => {
     setLoading(true);
     try {
+      // Si cancela, cerramos la sesión parcial de Supabase para limpiar todo
       await signOut(); 
       setIs2FAStep(false);
       setTwoFactorCode('');
@@ -133,20 +143,28 @@ const Auth: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!isLogin && !acceptTerms) {
       setError("Debes aceptar los Términos y Condiciones para continuar.");
       return;
     }
+
     setLoading(true);
     setError(null);
+
     if (formData.password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres.");
       setLoading(false);
       return;
     }
+
     try {
       if (isLogin) {
+        // En el flujo Email/Password, el onAuthStateChange del contexto se encargará 
+        // de detectar el 2FA y activar el modo espera. Solo necesitamos llamar al sign-in.
         await authService.signIn(formData.email, formData.password);
+        
+        // Si no hay 2FA, el contexto pondrá el usuario y navegaremos vía este efecto o manualmente si falla la navegación automática
       } else {
         await authService.signUp(formData.email, formData.password, formData.fullName);
         setIsRegistered(true);
@@ -158,6 +176,7 @@ const Auth: React.FC = () => {
       if (msg.includes("already registered")) msg = "Este correo ya está registrado.";
       if (msg.includes("Invalid login credentials")) msg = "Email o contraseña incorrectos.";
       if (msg.includes("Email not confirmed")) msg = "Debes confirmar tu correo electrónico antes de ingresar.";
+      
       setError(msg);
       setLoading(false);
     }
@@ -167,6 +186,7 @@ const Auth: React.FC = () => {
     setGoogleLoading(true);
     setError(null);
     try {
+      // El redirect se encargará del resto, y el AuthContext atrapará el evento SIGNED_IN
       await authService.signInWithGoogle();
     } catch (err: any) {
       setError(err.message || "No pudimos conectar con Google.");
@@ -177,9 +197,7 @@ const Auth: React.FC = () => {
   const handleResendFromNotice = async () => {
     setResendingInNotice(true);
     try {
-      const emailToUse = formData.email || internalUser?.email;
-      if (!emailToUse) throw new Error("Email no detectado.");
-      await authService.resendVerificationEmail(emailToUse);
+      await authService.resendVerificationEmail(formData.email);
       alert("¡Correo de activación reenviado!");
     } catch (e) {
       alert("Error al reenviar.");
@@ -187,61 +205,6 @@ const Auth: React.FC = () => {
       setResendingInNotice(false);
     }
   };
-
-  // VISTA 1: ESPERA DE EMAIL DE VERIFICACIÓN (Paso crítico)
-  if (isVerificationWaiting || isRegistered) {
-    return (
-      <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-slate-50/30">
-        <div className="max-w-md w-full bg-white p-10 rounded-[40px] shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-300">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-violet-100 rounded-full blur-2xl opacity-40 scale-150"></div>
-            <div className="relative w-24 h-24 bg-violet-600 text-white rounded-[32px] flex items-center justify-center mx-auto shadow-xl">
-              <Inbox size={40} className="animate-pulse" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Valida tu cuenta</h1>
-          <p className="text-slate-500 font-medium mb-8 leading-relaxed">
-            Hemos enviado un enlace de activación a:<br/>
-            <strong className="text-slate-900">{formData.email || internalUser?.email}</strong>
-          </p>
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-left mb-8">
-             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">¿Qué hacer ahora?</h4>
-             <ul className="space-y-3">
-                <li className="flex items-start gap-3 text-xs text-slate-600 font-bold leading-tight">
-                  <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] text-violet-600 shadow-sm shrink-0">1</div>
-                  Busca el correo de Donia en tu bandeja de entrada o spam.
-                </li>
-                <li className="flex items-start gap-3 text-xs text-slate-600 font-bold leading-tight">
-                  <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center text-[10px] text-violet-600 shadow-sm shrink-0">2</div>
-                  Haz clic en el botón "Validar mi cuenta" para activar tu acceso.
-                </li>
-             </ul>
-          </div>
-          <div className="space-y-4">
-            <button 
-              onClick={() => refreshProfile()} 
-              className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black text-lg hover:bg-violet-700 transition-all flex items-center justify-center gap-2 shadow-xl"
-            >
-              Ya validé mi correo <ArrowRight size={18} />
-            </button>
-            <button 
-              onClick={handleResendFromNotice} 
-              disabled={resendingInNotice} 
-              className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-violet-600 transition-colors flex items-center justify-center gap-2"
-            >
-              {resendingInNotice ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Reenviar enlace de validación
-            </button>
-            <button 
-              onClick={() => signOut()} 
-              className="w-full py-3 text-rose-400 font-black text-[10px] uppercase tracking-widest hover:text-rose-600"
-            >
-              Salir e intentar con otro correo
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (is2FAStep) {
     return (
@@ -278,7 +241,9 @@ const Auth: React.FC = () => {
                {recoveryStep === 'new_password' && 'Crea una contraseña segura para tu cuenta.'}
              </p>
           </div>
+
           {error && <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold rounded-2xl flex items-center gap-3"><AlertCircle size={16} /><p>{error}</p></div>}
+
           {recoveryStep === 'email' && (
             <form onSubmit={handleRecoveryRequest} className="space-y-6">
                <div className="relative">
@@ -290,13 +255,15 @@ const Auth: React.FC = () => {
                </button>
             </form>
           )}
+
           {recoveryStep === 'otp' && (
             <form onSubmit={handleRecoveryOTPVerify} className="space-y-6">
-               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setRecoveryOTP(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
+               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
                <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black hover:bg-violet-700 transition-all">Validar código</button>
                <button type="button" onClick={() => setRecoveryStep('email')} className="w-full text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600">Volver a intentar con otro email</button>
             </form>
           )}
+
           {recoveryStep === 'new_password' && (
             <form onSubmit={handleRecoveryReset} className="space-y-6">
                <div className="relative">
@@ -308,10 +275,32 @@ const Auth: React.FC = () => {
                </button>
             </form>
           )}
+
           <div className="mt-8 pt-8 border-t border-slate-50 text-center">
             <button onClick={() => { setIsRecoveryMode(false); setRecoveryStep('email'); setError(null); }} className="text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-violet-600 transition-colors flex items-center justify-center gap-2 mx-auto">
                <ArrowLeft size={14} /> Volver al ingreso
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isRegistered) {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-slate-50/30">
+        <div className="max-w-md w-full bg-white p-10 rounded-[40px] shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-300">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-violet-100 rounded-full blur-2xl opacity-40 scale-150"></div>
+            <div className="relative w-24 h-24 bg-violet-600 text-white rounded-[32px] flex items-center justify-center mx-auto shadow-xl">
+              <Send size={40} className="animate-bounce duration-[3000ms]" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">¡Revisa tu correo!</h1>
+          <p className="text-slate-500 font-medium mb-8 leading-relaxed">Hemos enviado un enlace de activación a:<br/><strong className="text-slate-900">{formData.email}</strong></p>
+          <div className="space-y-4">
+            <button onClick={() => { setIsLogin(true); setIsRegistered(false); setError(null); }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2">Ir al inicio de sesión</button>
+            <button onClick={handleResendFromNotice} disabled={resendingInNotice} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-violet-600 transition-colors flex items-center justify-center gap-2">{resendingInNotice ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Reenviar código</button>
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 
 import { Resend } from 'resend';
-import { createClient } from '@supabase/supabase-js';
 
 // rateLimitMap for in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number, lastReset: number }>();
@@ -120,38 +119,6 @@ export class Mailer {
     return data;
   }
 
-  /**
-   * Helper unificado para generar token y enviar correo de verificación
-   */
-  static async generateAndSendVerification(supabase: any, userId: string, email: string, fullName: string, req?: any) {
-    try {
-      // 1. Limpiar tokens antiguos no usados
-      await supabase.from('email_verifications').delete().eq('user_id', userId).is('consumed_at', null);
-
-      // 2. Crear nuevo token
-      const { data: verification, error: vError } = await supabase
-        .from('email_verifications')
-        .insert([{ user_id: userId }])
-        .select()
-        .single();
-
-      if (vError) throw vError;
-
-      // 3. Construir link
-      const baseUrl = getCanonicalBackendBaseUrl(req);
-      const verifyLink = `${baseUrl}/api/verify-token?token=${verification.token}`;
-      
-      // 4. Enviar correo
-      await this.sendAccountVerification(email, fullName, verifyLink);
-      
-      logger.info('VERIFICATION_PROCESS_SUCCESS', { email, userId });
-      return true;
-    } catch (err) {
-      logger.error('VERIFICATION_PROCESS_FAIL', err, { email, userId });
-      throw err;
-    }
-  }
-
   static async sendSecurityOTP(to: string, userName: string, code: string, action: string) {
     const body = `
       <h1>Código de Seguridad</h1>
@@ -250,15 +217,8 @@ export class Mailer {
   }
 
   static async sendAccountVerification(to: string, userName: string, link: string) {
-    const body = `
-      <h1>¡Bienvenido a Donia!</h1>
-      <p>Hola ${userName}, para empezar a crear campañas y participar en nuestra comunidad, necesitamos validar tu correo electrónico.</p>
-      <div style="text-align: center; margin: 40px 0;">
-        <a href="${link}" class="button">Validar mi cuenta</a>
-      </div>
-      <p style="font-size: 12px; color: #94a3b8; text-align: center;">Si el botón no funciona, copia y pega este enlace en tu navegador:<br>${link}</p>
-    `;
-    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: 'Valida tu cuenta en Donia', html: this.getHtmlLayout(body) });
+    const body = `<h1>¡Bienvenido!</h1><p>Hola ${userName}, activa tu cuenta:</p><div style="text-align: center;"><a href="${link}" class="button">Activar cuenta</a></div>`;
+    return this.send({ from: 'Donia <bienvenida@notifications.donia.cl>', to, subject: 'Activa tu cuenta', html: this.getHtmlLayout(body) });
   }
 
   static async sendWelcomeNotification(to: string, userName: string, req?: any) {
