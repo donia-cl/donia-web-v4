@@ -1,10 +1,39 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, DollarSign, Image as ImageIcon, UserCheck, ShieldCheck, Loader2, AlertCircle, RefreshCcw, Calendar, Clock, Plus, X, Star } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  DollarSign, 
+  Image as ImageIcon, 
+  UserCheck, 
+  ShieldCheck, 
+  Loader2, 
+  AlertCircle, 
+  RefreshCcw, 
+  Calendar, 
+  Clock, 
+  Plus, 
+  X, 
+  Star,
+  Info,
+  User,
+  Heart,
+  Handshake,
+  Building,
+  PawPrint
+} from 'lucide-react';
 import { useCampaign } from '../../context/CampaignContext';
 import { ProgressBar } from '../../components/ProgressBar';
 import { CampaignService } from '../../services/CampaignService';
+
+const RELATION_HELPERS: Record<string, { text: string, icon: any }> = {
+  'Yo mismo': { text: 'Los fondos se transferirán directamente al creador de la campaña.', icon: User },
+  'Familiar': { text: 'El creador recibirá los fondos y se compromete a entregarlos al beneficiario.', icon: Heart },
+  'Amigo': { text: 'El creador recibirá los fondos y se compromete a entregarlos al beneficiario.', icon: Handshake },
+  'Organización': { text: 'El creador recibirá los fondos y se compromete a entregarlos a la organización declarada.', icon: Building },
+  'Mascota': { text: 'Los fondos están destinados estrictamente a gastos veterinarios y cuidados.', icon: PawPrint }
+};
 
 const CreateDetails: React.FC = () => {
   const navigate = useNavigate();
@@ -102,6 +131,8 @@ const CreateDetails: React.FC = () => {
                   formData.beneficiarioNombre.trim().length >= 2 &&
                   formData.beneficiarioApellido.trim().length >= 2 &&
                   formData.images.length > 0;
+
+  const currentHelper = RELATION_HELPERS[formData.beneficiarioRelacion] || RELATION_HELPERS['Yo mismo'];
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-16">
@@ -250,7 +281,7 @@ const CreateDetails: React.FC = () => {
         <div className="bg-white p-8 rounded-[32px] border-2 border-slate-100 shadow-sm">
            <div className="flex items-center gap-3 mb-6">
               <ShieldCheck size={24} className="text-violet-600" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Información del Beneficiario</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Destino de los Fondos</h2>
            </div>
            
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
@@ -295,6 +326,17 @@ const CreateDetails: React.FC = () => {
                  <option value="Organización">Organización</option>
                  <option value="Mascota">Mascota</option>
               </select>
+              
+              {/* Helper Dinámico */}
+              <div className="mt-4 p-5 bg-violet-50 border border-violet-100 rounded-2xl flex items-start gap-4 animate-in fade-in slide-in-from-top-1">
+                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-violet-600 shadow-sm shrink-0">
+                    <currentHelper.icon size={20} />
+                 </div>
+                 <div className="pt-1">
+                    <p className="text-sm font-bold text-violet-900 leading-tight">{currentHelper.text}</p>
+                    <p className="text-[10px] text-violet-700/60 font-medium mt-1 uppercase tracking-wider">Aviso de responsabilidad del creador</p>
+                 </div>
+              </div>
            </div>
         </div>
 

@@ -23,7 +23,12 @@ import {
   Timer,
   ChevronRight,
   XCircle,
-  Instagram
+  Instagram,
+  User,
+  Handshake,
+  Building,
+  PawPrint,
+  Shield
 } from 'lucide-react';
 import { CampaignService } from '../services/CampaignService';
 import { CampaignData, Donation } from '../types';
@@ -40,6 +45,52 @@ const InfoCard = ({ icon: Icon, label, value, subValue, colorClass }: any) => (
     </div>
   </div>
 );
+
+const DestinationCard = ({ name, relation }: { name: string, relation: string }) => {
+  const getRelationConfig = (rel: string) => {
+    switch (rel) {
+      case 'Yo mismo':
+        return { icon: User, text: 'El creador de esta campaña', color: 'bg-violet-50 text-violet-600' };
+      case 'Familiar':
+        return { icon: Heart, text: 'Familiar directo del creador', color: 'bg-rose-50 text-rose-600' };
+      case 'Amigo':
+        return { icon: Handshake, text: 'Persona cercana al creador', color: 'bg-sky-50 text-sky-600' };
+      case 'Organización':
+        return { icon: Building, text: 'Organización declarada por el creador', color: 'bg-slate-50 text-slate-600' };
+      case 'Mascota':
+        return { icon: PawPrint, text: 'Fondos destinados a cuidados veterinarios', color: 'bg-emerald-50 text-emerald-600' };
+      default:
+        return { icon: UserCheck, text: 'Destinatario de los fondos', color: 'bg-slate-50 text-slate-600' };
+    }
+  };
+
+  const config = getRelationConfig(relation);
+
+  return (
+    <div className="space-y-3">
+      <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-start gap-4 transition-all hover:border-slate-200">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${config.color}`}>
+          <config.icon size={24} />
+        </div>
+        <div className="overflow-hidden">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Destino de los Fondos</p>
+          <p className="text-lg font-black text-slate-900 truncate leading-tight">{name}</p>
+          <p className="text-[11px] text-slate-500 font-bold mt-1 uppercase tracking-tight">{config.text}</p>
+        </div>
+      </div>
+      <div className="px-4 py-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
+        <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic flex items-start gap-2">
+          <AlertCircle size={12} className="shrink-0 mt-0.5 text-slate-400" />
+          El creador de esta campaña declara que los fondos serán utilizados para este beneficiario.
+        </p>
+        <p className="text-[10px] text-slate-400 font-bold mt-2 flex items-center gap-1.5 uppercase tracking-tighter">
+          <Shield size={10} className="text-violet-400" />
+          Donia monitorea campañas y actúa ante reportes de uso indebido.
+        </p>
+      </div>
+    </div>
+  );
+};
 
 const VerifiedBadge = () => (
   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
@@ -108,8 +159,6 @@ const CampaignDetail: React.FC = () => {
   };
 
   const handleInstagramShare = async () => {
-    // Instagram no tiene una URL de compartir directa para la web.
-    // Usamos el API nativo de compartir si está disponible (ideal para móviles)
     if (navigator.share && campaign) {
       try {
         await navigator.share({
@@ -118,11 +167,9 @@ const CampaignDetail: React.FC = () => {
           url: window.location.href,
         });
       } catch (err) {
-        // El usuario canceló o hubo error, fallamos al copiado
         copyToClipboard();
       }
     } else {
-      // En escritorio simplemente copiamos el link
       copyToClipboard();
     }
   };
@@ -389,13 +436,13 @@ const CampaignDetail: React.FC = () => {
 
                 <div className="pt-8 border-t border-slate-100 space-y-4">
                   <VerifiedBadge />
-                  <InfoCard 
-                    icon={UserCheck}
-                    label="Beneficiario"
-                    value={campaign.beneficiarioNombre}
-                    subValue={`Relación: ${campaign.beneficiarioRelacion}`}
-                    colorClass="bg-violet-50 text-violet-600"
+                  
+                  {/* Nueva Card de Destino de los Fondos */}
+                  <DestinationCard 
+                    name={campaign.beneficiarioNombre + " " + (campaign.beneficiarioApellido || "")}
+                    relation={campaign.beneficiarioRelacion || "Yo mismo"}
                   />
+
                   <InfoCard 
                     icon={MapPin}
                     label="Ubicación"
