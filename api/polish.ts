@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+
 import { Validator, logger, checkRateLimit } from './_utils.js';
 
 export default async function handler(req: any, res: any) {
@@ -18,29 +18,65 @@ export default async function handler(req: any, res: any) {
     Validator.required(story, 'story');
     Validator.string(story, 20, 'story');
 
-    // Using process.env.API_KEY as per the @google/genai guidelines
-    const apiKey = process.env.API_KEY;
+    // Sanitizamos la clave por si tiene espacios en la configuración de Vercel
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
-      logger.error('AI_CONFIG_MISSING', new Error('API_KEY no configurada en el entorno'));
+      logger.error('AI_CONFIG_MISSING', new Error('OPENAI_API_KEY no configurada en Vercel'));
       return res.status(503).json({ error: 'El servicio de IA no está configurado correctamente.' });
     }
 
-    logger.info('AI_POLISH_REQUEST_GEMINI', { ip, storyLength: story.length });
+    logger.info('AI_POLISH_REQUEST_OPENAI', { ip, storyLength: story.length });
 
-    // Initialization using the recommended method
-    const ai = new GoogleGenAI({ apiKey });
-    
-    // Using gemini-3-flash-preview for proofreading and text improvement tasks
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Eres un experto en redacción para crowdfunding solidario. Tu única función es mejorar el texto del usuario para que sea más claro, empático y profesional, manteniendo un tono chileno cercano y honesto. REGLAS CRÍTICAS: 1. NO inventes hechos ni nombres. 2. NO exageres ni uses lenguaje melodramático falso. 3. MANTÉN la veracidad de la historia original. 4. SOLO entrega el texto mejorado, sin introducciones ni comentarios explicativos.\n\nMejora el siguiente texto para una campaña solidaria en Donia:\n\n"${story}"`,
+    // Llamada directa a OpenAI mediante fetch
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un experto en redacción para crowdfunding solidario. Tu única función es mejorar el texto del usuario para que sea más claro, empático y profesional, manteniendo un tono chileno cercano y honesto. REGLAS CRÍTICAS: 1. NO inventes hechos ni nombres. 2. NO exageres ni uses lenguaje melodramático falso. 3. MANTÉN la veracidad de la historia original. 4. SOLO entrega el texto mejorado, sin introducciones ni comentarios explicativos.'
+          },
+          {
+            role: 'user',
+            content: `Mejora el siguiente texto para una campaña solidaria en Donia:\n\n"${story}"`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1500
+      })
     });
 
-    // Accessing text directly from the GenerateContentResponse object
-    const polishedText = response.text;
+    if (!response.ok) {
+      const errorData = await response.json();
+      // OpenAI devuelve el error en errorData.error.message
+      const errorMessage = errorData?.error?.message || 'Error desconocido en OpenAI';
+      const errorCode = errorData?.error?.code || 'no_code';
+      
+      logger.error('OPENAI_API_ERROR', new Error(errorMessage), { 
+        status: response.status, 
+        code: errorCode 
+      });
+
+      if (response.status === 429) {
+        throw new Error('Se ha excedido el límite de uso de la IA. Por favor, intenta más tarde.');
+      }
+      if (response.status === 401) {
+        throw new Error('Error de autenticación con el servicio de IA. Contacta a soporte.');
+      }
+      
+      throw new Error(`Error en la comunicación con OpenAI: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    const polishedText = data.choices?.[0]?.message?.content;
 
     if (!polishedText) {
-      throw new Error('La IA devolvió una respuesta vacía.');
+      throw new Error('La IA devolvió una respuesta vacía o mal formateada.');
     }
 
     logger.info('AI_POLISH_SUCCESS', { newLength: polishedText.length });
@@ -55,6 +91,8 @@ export default async function handler(req: any, res: any) {
       clientMessage = error.message;
     } else if (error.message.includes('límite de uso')) {
       clientMessage = error.message;
+    } else if (error.message.includes('autenticación')) {
+      clientMessage = 'El servicio de IA tiene un problema de configuración. Intenta más tarde.';
     }
 
     return res.status(500).json({ error: clientMessage });
