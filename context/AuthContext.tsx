@@ -17,6 +17,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Constantes de control
+const OTP_COOLDOWN_MS = 30000;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
   const [internalUser, setInternalUser] = useState<any | null>(null);
@@ -30,17 +33,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
-  const otpProcessingRef = useRef<string | null>(null);
+  
+  // Capa 1: Latch de Cooldown por ID de usuario
+  const lastOtpSentRef = useRef<Map<string, number>>(new Map());
 
-  // Función para manejar el estado de espera de 2FA
+  const canSendOtp = (userId: string) => {
+    const last = lastOtpSentRef.current.get(userId);
+    return !last || (Date.now() - last > OTP_COOLDOWN_MS);
+  };
+
   const set2FAWaitingStatus = (waiting: boolean) => {
     setIs2FAWaiting(waiting);
     if (waiting) {
       sessionStorage.setItem('donia_2fa_lock', 'true');
     } else {
       sessionStorage.removeItem('donia_2fa_lock');
-      otpProcessingRef.current = null;
       if (internalUser) {
+        lastOtpSentRef.current.delete(internalUser.id);
         setUser(internalUser);
       }
     }
@@ -62,11 +71,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: { session } } = await client.auth.getSession();
         
-        // --- GESTIÓN DE PARÁMETROS DE VERIFICACIÓN ---
         const params = new URLSearchParams(window.location.search);
         if (params.get('verified') === 'true') {
           sessionStorage.setItem('donia_2fa_verified', 'true');
-          // LIMPIAR URL PARA EVITAR LOOPS: Eliminamos el parámetro 'verified' sin recargar
           const newUrl = window.location.pathname + window.location.search.replace(/[?&]verified=true/, '').replace(/^&/, '?');
           window.history.replaceState({}, '', newUrl || '/');
         }
@@ -79,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-          // REGLA: 2FA bloquea solo si NO es Google y NO viene de un link verificado recientemente
           if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
             setIs2FAWaiting(true);
@@ -112,8 +118,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sessionStorage.setItem('donia_2fa_lock', 'true');
                 setUser(null);
                 
-                if (otpProcessingRef.current !== currentUser.id) {
-                  otpProcessingRef.current = currentUser.id;
+                // LÓGICA ANTI-DUPLICIDAD (Capas 1 y 2)
+                if (canSendOtp(currentUser.id)) {
+                  lastOtpSentRef.current.set(currentUser.id, Date.now());
+                  
                   try {
                     await fetch('/api/security-otp', {
                       method: 'POST',
@@ -124,8 +132,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         email: currentUser.email 
                       })
                     });
-                  } catch (otpErr) {
-                    otpProcessingRef.current = null;
+                  } catch (otpErr: any) {
+                    // Capa 2: Si el error es por navegación (Abort), NO liberamos el cooldown
+                    if (otpErr.name === 'AbortError' || otpErr.message?.includes('aborted')) {
+                      return; 
+                    }
+                    // Solo si es un error real de red, permitimos reintento eliminando el latch
+                    lastOtpSentRef.current.delete(currentUser.id);
                   }
                 }
               } else {
@@ -143,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIs2FAWaiting(false);
             sessionStorage.removeItem('donia_2fa_lock');
             sessionStorage.removeItem('donia_2fa_verified');
-            otpProcessingRef.current = null;
+            lastOtpSentRef.current.clear();
           }
         });
 
@@ -173,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIs2FAWaiting(false);
       sessionStorage.removeItem('donia_2fa_lock');
       sessionStorage.removeItem('donia_2fa_verified');
-      otpProcessingRef.current = null;
+      lastOtpSentRef.current.clear();
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {

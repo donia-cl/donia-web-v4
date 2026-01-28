@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Mailer, logger, Validator } from './_utils.js';
 
@@ -21,8 +20,26 @@ export default async function handler(req: any, res: any) {
     Validator.required(userId, 'userId');
     Validator.required(type, 'type');
 
-    // PRIORIDAD: Si el frontend ya nos manda el email (muy útil para Google Login), lo usamos.
-    // Si no, intentamos buscarlo via Admin SDK de Supabase.
+    // Capa 3: IDEMPOTENCIA SUAVE
+    // Buscamos si ya se generó un OTP del mismo tipo para este usuario en los últimos 30 segundos
+    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
+    const { data: recentOtp } = await supabase
+      .from('security_otps')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', type)
+      .gt('created_at', thirtySecondsAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentOtp) {
+      logger.info('SECURITY_OTP_SKIPPED_DUPLICATE', { userId, type, recentId: recentOtp.id });
+      return res.status(200).json({ 
+        success: true, 
+        message: "OTP ya enviado recientemente, ignorando solicitud duplicada." 
+      });
+    }
+
     let email = providedEmail;
     if (!email) {
       try {
@@ -37,7 +54,6 @@ export default async function handler(req: any, res: any) {
       throw new Error("No se pudo determinar el destinatario del código de seguridad.");
     }
 
-    // Intentar obtener el nombre del perfil, pero no bloquear si falla
     let name = 'Usuario';
     try {
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
