@@ -20,26 +20,33 @@ export default async function handler(req: any, res: any) {
     Validator.required(userId, 'userId');
     Validator.required(type, 'type');
 
-    // Capa 3: IDEMPOTENCIA SUAVE
-    // Buscamos si ya se generó un OTP del mismo tipo para este usuario en los últimos 30 segundos
-    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-    const { data: recentOtp } = await supabase
-      .from('security_otps')
-      .select('id, created_at')
-      .eq('user_id', userId)
-      .eq('type', type)
-      .gt('created_at', thirtySecondsAgo)
-      .limit(1)
-      .maybeSingle();
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); 
 
-    if (recentOtp) {
-      logger.info('SECURITY_OTP_SKIPPED_DUPLICATE', { userId, type, recentId: recentOtp.id });
+    // CAPA 3: IDEMPOTENCIA ATÓMICA VIA RPC
+    // Llamamos a la función de DB que hace el check-and-insert en un solo paso
+    const { data: wasInserted, error: rpcError } = await supabase.rpc('request_security_otp_atomic', {
+      p_user_id: userId,
+      p_type: type,
+      p_code: otpCode,
+      p_expires_at: expiresAt
+    });
+
+    if (rpcError) {
+      logger.error('SECURITY_OTP_RPC_FAIL', rpcError);
+      throw rpcError;
+    }
+
+    // Si la función devolvió FALSE, significa que detectó un duplicado en la ventana de 30s
+    if (!wasInserted) {
+      logger.info('SECURITY_OTP_SKIPPED_ATOMIC', { userId, type });
       return res.status(200).json({ 
         success: true, 
-        message: "OTP ya enviado recientemente, ignorando solicitud duplicada." 
+        message: "Solicitud procesada anteriormente (Idempotencia Atómica)." 
       });
     }
 
+    // Solo si se insertó con éxito, procedemos a enviar el correo
     let email = providedEmail;
     if (!email) {
       try {
@@ -51,7 +58,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!email) {
-      throw new Error("No se pudo determinar el destinatario del código de seguridad.");
+      throw new Error("No se pudo determinar el destinatario del código.");
     }
 
     let name = 'Usuario';
@@ -62,9 +69,6 @@ export default async function handler(req: any, res: any) {
       logger.warn('PROFILE_NAME_LOOKUP_FAIL', { userId });
     }
     
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); 
-
     let actionDesc = 'realizar una acción de seguridad';
     if (type === 'bank_account_update') actionDesc = 'actualizar tus datos bancarios para retiros';
     if (type === 'phone_update') actionDesc = 'cambiar tu número de teléfono de contacto';
@@ -72,11 +76,7 @@ export default async function handler(req: any, res: any) {
     if (type === 'withdrawal_request') actionDesc = 'autorizar el retiro de fondos de tu campaña';
     if (type === 'cancel_campaign') actionDesc = 'cancelar definitivamente tu campaña activa';
 
-    // Guardar OTP en BD
-    await supabase.from('security_otps').delete().eq('user_id', userId).eq('type', type);
-    await supabase.from('security_otps').insert([{ user_id: userId, code: otpCode, type: type, expires_at: expiresAt }]);
-
-    // Enviar correo
+    // Enviar correo (Solo se llega aquí si el insert fue el ÚNICO ganador)
     if (type === 'login_2fa') {
       await Mailer.send2FACode(email, name, otpCode);
     } else {

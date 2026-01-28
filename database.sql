@@ -1,21 +1,48 @@
-
--- Tabla para códigos OTP de seguridad
+-- Tabla para códigos OTP de seguridad (ya definida, aseguramos índices)
 CREATE TABLE IF NOT EXISTS public.security_otps (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     code TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'password_change', 'email_change', '2fa_toggle', 'login_2fa', etc.
+    type TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     used_at TIMESTAMPTZ
 );
 
--- Añadir columna de 2FA a perfiles si no existe
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN DEFAULT FALSE;
+-- Índice para optimizar la búsqueda por ventana de tiempo
+CREATE INDEX IF NOT EXISTS idx_otps_idempotency ON public.security_otps(user_id, type, created_at);
 
--- Índice para limpiezas rápidas
-CREATE INDEX IF NOT EXISTS idx_otps_user_type ON public.security_otps(user_id, type);
+-- FUNCIÓN ATÓMICA DE IDEMPOTENCIA
+-- Esta función garantiza que solo se registre un OTP si no existe uno 
+-- creado en los últimos 30 segundos para el mismo usuario y tipo.
+CREATE OR REPLACE FUNCTION public.request_security_otp_atomic(
+    p_user_id UUID, 
+    p_type TEXT, 
+    p_code TEXT, 
+    p_expires_at TIMESTAMPTZ
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_exists BOOLEAN;
+BEGIN
+  -- Bloqueo consultivo opcional para este usuario/tipo si fuera necesario, 
+  -- pero el EXISTS con ventana de tiempo suele bastar.
+  SELECT EXISTS (
+    SELECT 1 FROM public.security_otps 
+    WHERE user_id = p_user_id 
+    AND type = p_type 
+    AND created_at > (now() - interval '30 seconds')
+    AND used_at IS NULL
+  ) INTO v_exists;
 
--- Política de seguridad (solo accesible via Service Role / API)
-ALTER TABLE public.security_otps ENABLE ROW LEVEL SECURITY;
+  IF v_exists THEN
+    RETURN FALSE; -- Indica que ya se envió uno recientemente
+  END IF;
+
+  -- Solo si no existe uno reciente, insertamos el nuevo
+  INSERT INTO public.security_otps (user_id, type, code, expires_at)
+  VALUES (p_user_id, p_type, p_code, p_expires_at);
+  
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

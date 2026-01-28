@@ -33,14 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
-  
-  // Capa 1: Latch de Cooldown por ID de usuario
-  const lastOtpSentRef = useRef<Map<string, number>>(new Map());
-
-  const canSendOtp = (userId: string) => {
-    const last = lastOtpSentRef.current.get(userId);
-    return !last || (Date.now() - last > OTP_COOLDOWN_MS);
-  };
 
   const set2FAWaitingStatus = (waiting: boolean) => {
     setIs2FAWaiting(waiting);
@@ -49,7 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       sessionStorage.removeItem('donia_2fa_lock');
       if (internalUser) {
-        lastOtpSentRef.current.delete(internalUser.id);
+        // Limpiar el latch persistente al completar el flujo con éxito
+        sessionStorage.removeItem(`donia_otp_latch_${internalUser.id}`);
         setUser(internalUser);
       }
     }
@@ -118,9 +111,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sessionStorage.setItem('donia_2fa_lock', 'true');
                 setUser(null);
                 
-                // LÓGICA ANTI-DUPLICIDAD (Capas 1 y 2)
-                if (canSendOtp(currentUser.id)) {
-                  lastOtpSentRef.current.set(currentUser.id, Date.now());
+                // CAPA 1: LATCH PERSISTENTE EN SESSION STORAGE
+                // Sobrevive a redirecciones y remounts de la App
+                const otpLatchKey = `donia_otp_latch_${currentUser.id}`;
+                const lastSentAt = sessionStorage.getItem(otpLatchKey);
+                const now = Date.now();
+
+                if (!lastSentAt || (now - parseInt(lastSentAt) > OTP_COOLDOWN_MS)) {
+                  sessionStorage.setItem(otpLatchKey, now.toString());
                   
                   try {
                     await fetch('/api/security-otp', {
@@ -133,12 +131,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       })
                     });
                   } catch (otpErr: any) {
-                    // Capa 2: Si el error es por navegación (Abort), NO liberamos el cooldown
+                    // CAPA 2: MANEJO DE ABORTERROR
+                    // Si el error es por navegación (Abort), NO liberamos el latch
                     if (otpErr.name === 'AbortError' || otpErr.message?.includes('aborted')) {
                       return; 
                     }
-                    // Solo si es un error real de red, permitimos reintento eliminando el latch
-                    lastOtpSentRef.current.delete(currentUser.id);
+                    // Solo ante errores reales de red (500, etc), permitimos reintento rápido eliminando el latch
+                    sessionStorage.removeItem(otpLatchKey);
                   }
                 }
               } else {
@@ -156,7 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIs2FAWaiting(false);
             sessionStorage.removeItem('donia_2fa_lock');
             sessionStorage.removeItem('donia_2fa_verified');
-            lastOtpSentRef.current.clear();
+            // Limpiar latches de seguridad
+            Object.keys(sessionStorage).forEach(key => {
+              if (key.startsWith('donia_otp_latch_')) sessionStorage.removeItem(key);
+            });
           }
         });
 
@@ -186,7 +188,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIs2FAWaiting(false);
       sessionStorage.removeItem('donia_2fa_lock');
       sessionStorage.removeItem('donia_2fa_verified');
-      lastOtpSentRef.current.clear();
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {
