@@ -143,7 +143,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
             <div className="space-y-4">
               <div className="grid grid-cols-12 px-4 mb-2">
                 <div className="col-span-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Donante / Fecha</div>
-                <div className="col-span-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto</div>
+                <div className="col-span-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Donación</div>
                 <div className="col-span-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</div>
               </div>
               {donations.map((don) => {
@@ -155,7 +155,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
                       <p className="text-[10px] text-slate-400 font-medium">{new Date(don.fecha).toLocaleDateString('es-CL')}</p>
                     </div>
                     <div className="col-span-3 text-center">
-                      <p className="font-black text-slate-900 text-sm">${don.amountTotal.toLocaleString('es-CL')}</p>
+                      <p className="font-black text-slate-900 text-sm">${(don.amountCause || 0).toLocaleString('es-CL')}</p>
                     </div>
                     <div className="col-span-3 text-right">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${refundInfo.color}`}>
@@ -177,7 +177,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
 
         <div className="p-8 border-t border-slate-100 bg-white shrink-0">
           <p className="text-[11px] text-slate-400 font-medium text-center mb-6 px-4 leading-relaxed">
-            Las devoluciones se procesan automáticamente hacia el medio de pago original. Los tiempos dependen de la institución bancaria del donante (entre 5 a 15 días hábiles).
+            Las devoluciones corresponden únicamente al <strong>monto neto de la donación</strong>. La propina voluntaria y la comisión de la pasarela no son reembolsables.
           </p>
           <button 
             onClick={onClose}
@@ -446,7 +446,7 @@ const CancelCampaignModal = ({
             <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 mb-6 text-left">
               <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Aviso Importante</p>
               <p className="text-[11px] text-rose-700 font-bold leading-tight">
-                Esta campaña ya tiene aportes. La cancelación podría requerir revisiones adicionales por parte de Donia.
+                Esta campaña ya tiene aportes. La cancelación podría requerir revisiones adicionales por parte de Donia para procesar devoluciones.
               </p>
             </div>
           )}
@@ -588,7 +588,7 @@ const WithdrawalSuccessModal = ({ onClose }: { onClose: () => void }) => (
         </p>
         <button 
           onClick={onClose} 
-          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
+          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
         >
           Entendido
         </button>
@@ -970,6 +970,7 @@ const Dashboard: React.FC = () => {
     const withdrawnForThisCampaign = withdrawals
       .filter(w => w.campaignId === campaignToCancel.id && (w.estado === 'pendiente' || w.estado === 'completado'))
       .reduce((acc, w) => acc + Number(w.monto), 0);
+    // Fix: Use the correct variable name 'withdrawnForThisCampaign' instead of the undefined 'yaRetirado'
     const balance = (Number(campaignToCancel.recaudado) || 0) - withdrawnForThisCampaign;
 
     if (balance > 0) {
@@ -1234,7 +1235,7 @@ const Dashboard: React.FC = () => {
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">RECAUDACIÓN EN CURSO (NO RETIRABLE)</p>
                  <p className="text-4xl font-black text-slate-900">${financials?.enCursoNoDisponible.toLocaleString('es-CL') || '0'}</p>
                  <div className="bg-slate-200/50 text-slate-600 px-3 py-1.5 rounded-full text-[10px] font-black flex items-center gap-2 w-fit mt-5">
-                   <Info size={14} />
+                   <span className="animate-pulse w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                    <span>Se liberan al finalizar cada campaña</span>
                  </div>
                </div>
