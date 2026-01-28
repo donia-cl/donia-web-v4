@@ -40,8 +40,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       sessionStorage.removeItem('donia_2fa_lock');
       otpProcessingRef.current = null;
-      // CRÍTICO: Si ya tenemos el internalUser (sesión de Supabase activa), 
-      // lo activamos como el usuario principal de la app al liberar el 2FA.
       if (internalUser) {
         setUser(internalUser);
       }
@@ -63,23 +61,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const { data: { session } } = await client.auth.getSession();
+        
+        // --- GESTIÓN DE PARÁMETROS DE VERIFICACIÓN ---
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('verified') === 'true') {
+          sessionStorage.setItem('donia_2fa_verified', 'true');
+          // LIMPIAR URL PARA EVITAR LOOPS: Eliminamos el parámetro 'verified' sin recargar
+          const newUrl = window.location.pathname + window.location.search.replace(/[?&]verified=true/, '').replace(/^&/, '?');
+          window.history.replaceState({}, '', newUrl || '/');
+        }
+
         if (session?.user && mountedRef.current) {
           const p = await authService.fetchProfile(session.user.id);
           setInternalUser(session.user);
           setProfile(p);
           
           const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
-          
-          // LÓGICA DE BYPASS: Si el usuario viene de un link de verificación recién clickeado,
-          // consideramos que ya validó su identidad vía email y no pedimos OTP de login.
-          const params = new URLSearchParams(window.location.search);
-          if (params.get('verified') === 'true') {
-            sessionStorage.setItem('donia_2fa_verified', 'true');
-          }
-
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-          // REGLA: 2FA solo para no-Google
+          // REGLA: 2FA bloquea solo si NO es Google y NO viene de un link verificado recientemente
           if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
             setIs2FAWaiting(true);
@@ -105,16 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setProfile(p);
 
               const isGoogle = currentUser.app_metadata?.provider === 'google' || currentUser.app_metadata?.providers?.includes('google');
-              
-              // Aplicar bypass también en cambios de estado si el parámetro está en la URL
-              const params = new URLSearchParams(window.location.search);
-              if (params.get('verified') === 'true') {
-                sessionStorage.setItem('donia_2fa_verified', 'true');
-              }
-              
               const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
-              // REGLA: 2FA solo para no-Google
               if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
                 setIs2FAWaiting(true);
                 sessionStorage.setItem('donia_2fa_lock', 'true');
@@ -200,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh]">
         <Loader2 className="w-10 h-10 text-violet-600 animate-spin mb-4" />
-        <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Validando acceso...</span>
+        <span className="text-slate-400 font-black text-[10px] uppercase tracking-widest">Sincronizando sesión...</span>
       </div>
     );
   }
