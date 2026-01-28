@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthService } from '../services/AuthService';
@@ -33,12 +32,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isSigningOut = useRef(false);
   const otpProcessingRef = useRef<string | null>(null);
 
+  // Función para manejar el estado de espera de 2FA
   const set2FAWaitingStatus = (waiting: boolean) => {
     setIs2FAWaiting(waiting);
-    if (waiting) sessionStorage.setItem('donia_2fa_lock', 'true');
-    else {
+    if (waiting) {
+      sessionStorage.setItem('donia_2fa_lock', 'true');
+    } else {
       sessionStorage.removeItem('donia_2fa_lock');
       otpProcessingRef.current = null;
+      // CRÍTICO: Si ya tenemos el internalUser (sesión de Supabase activa), 
+      // lo activamos como el usuario principal de la app al liberar el 2FA.
+      if (internalUser) {
+        setUser(internalUser);
+      }
     }
   };
 
@@ -68,10 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // REGLA: 2FA solo para no-Google
           if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
-            set2FAWaitingStatus(true);
+            setIs2FAWaiting(true);
+            sessionStorage.setItem('donia_2fa_lock', 'true');
           } else {
             setUser(session.user);
-            set2FAWaitingStatus(false);
+            setIs2FAWaiting(false);
+            sessionStorage.removeItem('donia_2fa_lock');
           }
         }
         
@@ -93,7 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               // REGLA: 2FA solo para no-Google
               if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
-                set2FAWaitingStatus(true);
+                setIs2FAWaiting(true);
+                sessionStorage.setItem('donia_2fa_lock', 'true');
                 setUser(null);
                 
                 if (otpProcessingRef.current !== currentUser.id) {
@@ -114,7 +123,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               } else {
                 setUser(currentUser);
-                set2FAWaitingStatus(false);
+                setIs2FAWaiting(false);
+                sessionStorage.removeItem('donia_2fa_lock');
               }
             }
           }
@@ -123,7 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
             setInternalUser(null);
             setProfile(null);
-            set2FAWaitingStatus(false);
+            setIs2FAWaiting(false);
+            sessionStorage.removeItem('donia_2fa_lock');
             sessionStorage.removeItem('donia_2fa_verified');
             otpProcessingRef.current = null;
           }
@@ -152,7 +163,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setInternalUser(null);
       setProfile(null);
-      set2FAWaitingStatus(false);
+      setIs2FAWaiting(false);
+      sessionStorage.removeItem('donia_2fa_lock');
       sessionStorage.removeItem('donia_2fa_verified');
       otpProcessingRef.current = null;
       await authService.signOut();
