@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authService = AuthService.getInstance();
   const mountedRef = useRef(true);
   const isSigningOut = useRef(false);
-  const lastOtpTimestamp = useRef<Record<string, number>>({});
+  const otpProcessingRef = useRef<string | null>(null);
 
   // Función para manejar el estado de espera de 2FA
   const set2FAWaitingStatus = (waiting: boolean) => {
@@ -39,9 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('donia_2fa_lock', 'true');
     } else {
       sessionStorage.removeItem('donia_2fa_lock');
+      otpProcessingRef.current = null;
       if (internalUser) {
-        // Limpiamos el historial de OTP al entrar con éxito
-        delete lastOtpTimestamp.current[internalUser.id];
         setUser(internalUser);
       }
     }
@@ -63,9 +62,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: { session } } = await client.auth.getSession();
         
+        // --- GESTIÓN DE PARÁMETROS DE VERIFICACIÓN ---
         const params = new URLSearchParams(window.location.search);
         if (params.get('verified') === 'true') {
           sessionStorage.setItem('donia_2fa_verified', 'true');
+          // LIMPIAR URL PARA EVITAR LOOPS: Eliminamos el parámetro 'verified' sin recargar
           const newUrl = window.location.pathname + window.location.search.replace(/[?&]verified=true/, '').replace(/^&/, '?');
           window.history.replaceState({}, '', newUrl || '/');
         }
@@ -78,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
+          // REGLA: 2FA bloquea solo si NO es Google y NO viene de un link verificado recientemente
           if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
             setUser(null);
             setIs2FAWaiting(true);
@@ -110,13 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sessionStorage.setItem('donia_2fa_lock', 'true');
                 setUser(null);
                 
-                // LÓGICA ANTI-DUPLICIDAD:
-                // Verificamos si ya enviamos un OTP en los últimos 30 segundos para este usuario
-                const now = Date.now();
-                const lastSent = lastOtpTimestamp.current[currentUser.id] || 0;
-                
-                if (now - lastSent > 30000) { // Cooldown de 30 segundos
-                  lastOtpTimestamp.current[currentUser.id] = now;
+                if (otpProcessingRef.current !== currentUser.id) {
+                  otpProcessingRef.current = currentUser.id;
                   try {
                     await fetch('/api/security-otp', {
                       method: 'POST',
@@ -128,8 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       })
                     });
                   } catch (otpErr) {
-                    // Si falla por red (no por cancelación), permitimos reintento en 5 seg
-                    lastOtpTimestamp.current[currentUser.id] = now - 25000;
+                    otpProcessingRef.current = null;
                   }
                 }
               } else {
@@ -147,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIs2FAWaiting(false);
             sessionStorage.removeItem('donia_2fa_lock');
             sessionStorage.removeItem('donia_2fa_verified');
-            lastOtpTimestamp.current = {};
+            otpProcessingRef.current = null;
           }
         });
 
@@ -177,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIs2FAWaiting(false);
       sessionStorage.removeItem('donia_2fa_lock');
       sessionStorage.removeItem('donia_2fa_verified');
-      lastOtpTimestamp.current = {};
+      otpProcessingRef.current = null;
       await authService.signOut();
       window.location.assign('/');
     } catch (e) {
