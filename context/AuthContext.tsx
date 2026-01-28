@@ -69,6 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(p);
           
           const isGoogle = session.user.app_metadata?.provider === 'google' || session.user.app_metadata?.providers?.includes('google');
+          
+          // LÓGICA DE BYPASS: Si el usuario viene de un link de verificación recién clickeado,
+          // consideramos que ya validó su identidad vía email y no pedimos OTP de login.
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('verified') === 'true') {
+            sessionStorage.setItem('donia_2fa_verified', 'true');
+          }
+
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
           // REGLA: 2FA solo para no-Google
@@ -97,6 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setProfile(p);
 
               const isGoogle = currentUser.app_metadata?.provider === 'google' || currentUser.app_metadata?.providers?.includes('google');
+              
+              // Aplicar bypass también en cambios de estado si el parámetro está en la URL
+              const params = new URLSearchParams(window.location.search);
+              if (params.get('verified') === 'true') {
+                sessionStorage.setItem('donia_2fa_verified', 'true');
+              }
+              
               const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
               // REGLA: 2FA solo para no-Google
