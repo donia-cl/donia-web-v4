@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -433,7 +432,7 @@ const CancelCampaignModal = ({
   
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
             <AlertTriangle size={32} />
@@ -698,6 +697,7 @@ const Dashboard: React.FC = () => {
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [rutError, setRutError] = useState<string | null>(null);
   const [bankRutError, setBankRutError] = useState<string | null>(null);
+  const [bankAccountError, setBankAccountError] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState<{show: boolean, msg: string}>({show: false, msg: ''});
   const [profileSaving, setProfileSaving] = useState(false);
   const [bankSaving, setBankSaving] = useState(false);
@@ -863,11 +863,22 @@ const Dashboard: React.FC = () => {
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // 1. Validar RUT
     if (!validateRut(bankForm.holderRut)) {
       setBankRutError("RUT del titular inválido.");
       return;
     } else {
       setBankRutError(null);
+    }
+
+    // 2. Validar Número de Cuenta (Longitud chilena estándar)
+    const accLen = bankForm.accountNumber.length;
+    if (accLen < 7 || accLen > 12) {
+      setBankAccountError("El número de cuenta debe tener entre 7 y 12 dígitos.");
+      return;
+    } else {
+      setBankAccountError(null);
     }
     
     try {
@@ -1020,6 +1031,12 @@ const Dashboard: React.FC = () => {
   const handleBankRutBlur = () => {
     if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT del titular inválido.");
     else setBankRutError(null);
+  };
+
+  const handleBankAccountBlur = () => {
+    const accLen = bankForm.accountNumber.length;
+    if (accLen > 0 && (accLen < 7 || accLen > 12)) setBankAccountError("Debe tener entre 7 y 12 dígitos.");
+    else setBankAccountError(null);
   };
 
   const copyLink = (id: string) => {
@@ -1364,7 +1381,20 @@ const Dashboard: React.FC = () => {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Institución Bancaria</label><select className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-bold" value={bankForm.bankName} onChange={e => setBankForm({...bankForm, bankName: e.target.value})} required><option value="">Selecciona Banco</option>{CHILEAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tipo de Cuenta</label><select className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-bold" value={bankForm.accountType} onChange={e => setBankForm({...bankForm, accountType: e.target.value})} required><option value="">Tipo de cuenta</option>{ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Número de Cuenta</label><input type="text" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl font-bold" placeholder="XXXXXXXXX" value={bankForm.accountNumber} onChange={e => setBankForm({...bankForm, accountNumber: e.target.value.replace(/\D/g, '')})} required /></div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Número de Cuenta</label>
+                        <input 
+                          type="text" 
+                          maxLength={12}
+                          className={`w-full p-4 bg-slate-50 border-2 ${bankAccountError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-2xl font-bold transition-all`} 
+                          placeholder="XXXXXXXXX" 
+                          value={bankForm.accountNumber} 
+                          onChange={e => setBankForm({...bankForm, accountNumber: e.target.value.replace(/\D/g, '')})} 
+                          onBlur={handleBankAccountBlur}
+                          required 
+                        />
+                        {bankAccountError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankAccountError}</p>}
+                      </div>
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Titular de la Cuenta</label><input type="text" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl font-bold" placeholder="Nombre completo" value={bankForm.holderName} onChange={e => setBankForm({...bankForm, holderName: e.target.value})} required /></div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">RUT del Titular</label>
@@ -1380,7 +1410,7 @@ const Dashboard: React.FC = () => {
                         {bankRutError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankRutError}</p>}
                       </div>
                    </div>
-                   <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsEditingBank(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" disabled={bankSaving || !!bankRutError} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 shadow-lg flex items-center justify-center gap-2">{bankSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar Datos Bancarios</button></div>
+                   <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsEditingBank(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" disabled={bankSaving || !!bankRutError || !!bankAccountError} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 shadow-lg flex items-center justify-center gap-2">{bankSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar Datos Bancarios</button></div>
                 </form>
               )}
             </div>
