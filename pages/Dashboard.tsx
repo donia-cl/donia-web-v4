@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -588,7 +589,7 @@ const WithdrawalSuccessModal = ({ onClose }: { onClose: () => void }) => (
         </p>
         <button 
           onClick={onClose} 
-          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+          className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 shadow-xl transition-all active:scale-95"
         >
           Entendido
         </button>
@@ -880,12 +881,16 @@ const Dashboard: React.FC = () => {
   const triggerWithdrawal = async (campaignId: string, monto: number, otpCode: string) => {
     if (!user) return;
     setActionLoading(campaignId);
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_TRIGGER_START', timestamp: new Date().toISOString(), userId: user.id, campaignId, monto }));
     try {
       await service.requestWithdrawal(user.id, campaignId, monto, otpCode);
       setOtpModal(null);
       setShowWithdrawalSuccess(true);
       loadAllData(true);
     } catch (e: any) { 
+      // LOGGING
+      console.error(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_TRIGGER_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
       throw e; 
     } finally { 
       setActionLoading(null); 
@@ -894,6 +899,8 @@ const Dashboard: React.FC = () => {
 
   const handleWithdrawalRequest = (campaignId: string, monto: number) => {
     if (!user) return;
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_MODAL_OPEN', timestamp: new Date().toISOString(), userId: user.id, campaignId, monto }));
     if (!bankAccount) {
       setShowBankAlert(true);
       return;
@@ -919,6 +926,8 @@ const Dashboard: React.FC = () => {
   const triggerCancelCampaign = async (campaignId: string, otpCode?: string) => {
     if (!user) return;
     setIsCancellingLoading(true);
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_CANCEL_CAMPAIGN_START', timestamp: new Date().toISOString(), userId: user.id, campaignId }));
     try {
       await service.cancelCampaign(campaignId, user.id, otpCode);
       setCampaignToCancel(null);
@@ -927,6 +936,8 @@ const Dashboard: React.FC = () => {
       setNotification({ title: "Éxito", desc: "Campaña cancelada con éxito.", type: "success" });
     } catch (e: any) {
       if (otpCode) throw e;
+      // LOGGING
+      console.error(JSON.stringify({ event: 'DASHBOARD_CANCEL_CAMPAIGN_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
       setNotification({ title: "Error", desc: e.message, type: "error" });
     } finally {
       setIsCancellingLoading(false);
@@ -951,11 +962,15 @@ const Dashboard: React.FC = () => {
         const newStatus = isPausing ? 'pausada' : 'activa';
         setConfirmModal(null);
         setActionLoading(c.id);
+        // LOGGING
+        console.info(JSON.stringify({ event: 'DASHBOARD_PAUSE_TOGGLE_START', timestamp: new Date().toISOString(), userId: user.id, campaignId: c.id, newStatus }));
         try {
           await service.updateCampaign(c.id, user.id, { estado: newStatus });
           await loadAllData(true);
           displayToast(`Campaña ${isPausing ? 'pausada' : 'reanudada'} correctamente.`);
         } catch (e: any) {
+          // LOGGING
+          console.error(JSON.stringify({ event: 'DASHBOARD_PAUSE_TOGGLE_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
           setNotification({ title: "Error", desc: e.message, type: "error" });
         } finally {
           setActionLoading(null);

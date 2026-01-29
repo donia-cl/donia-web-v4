@@ -36,6 +36,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isSigningOut = useRef(false);
 
   const set2FAWaitingStatus = (waiting: boolean) => {
+    // LOGGING
+    console.info(JSON.stringify({ event: 'AUTH_2FA_WAITING_CHANGE', timestamp: new Date().toISOString(), waiting }));
     setIs2FAWaiting(waiting);
     if (waiting) {
       sessionStorage.setItem('donia_2fa_lock', 'true');
@@ -54,12 +56,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let subscription: any = null;
     
     const initializeAuth = async () => {
+      // LOGGING
+      console.info(JSON.stringify({ event: 'AUTH_INIT_START', timestamp: new Date().toISOString() }));
       try {
         await authService.initialize();
         const client = authService.getSupabase();
         
         if (!client) {
           if (mountedRef.current) setLoading(false);
+          // LOGGING
+          console.warn(JSON.stringify({ event: 'AUTH_INIT_NO_CLIENT', timestamp: new Date().toISOString() }));
           return;
         }
 
@@ -74,6 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (session?.user && mountedRef.current) {
+          // LOGGING
+          console.info(JSON.stringify({ event: 'AUTH_SESSION_FOUND', timestamp: new Date().toISOString(), userId: session.user.id }));
           const p = await authService.fetchProfile(session.user.id);
           setInternalUser(session.user);
           setProfile(p);
@@ -82,6 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isVerifiedInSession = sessionStorage.getItem('donia_2fa_verified') === 'true';
 
           if (p?.two_factor_enabled && !isGoogle && !isVerifiedInSession) {
+            // LOGGING
+            console.info(JSON.stringify({ event: 'AUTH_2FA_BLOCK_ACTIVE', timestamp: new Date().toISOString(), userId: session.user.id }));
             setUser(null);
             setIs2FAWaiting(true);
             sessionStorage.setItem('donia_2fa_lock', 'true');
@@ -98,6 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!mountedRef.current || isSigningOut.current) return;
           
           const currentUser = session?.user ?? null;
+          // LOGGING
+          console.info(JSON.stringify({ event: 'AUTH_STATE_CHANGE', timestamp: new Date().toISOString(), authEvent: event, hasUser: !!currentUser }));
           
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             if (currentUser) {
@@ -122,6 +134,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (!lastSentAt || (now - parseInt(lastSentAt) > OTP_COOLDOWN_MS)) {
                   sessionStorage.setItem(otpLatchKey, now.toString());
                   
+                  // LOGGING
+                  console.info(JSON.stringify({ event: 'AUTH_TRIGGER_2FA_OTP', timestamp: new Date().toISOString(), userId: currentUser.id }));
                   try {
                     await fetch('/api/security-otp', {
                       method: 'POST',
@@ -140,6 +154,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                     // Solo ante errores reales de red (500, etc), permitimos reintento rápido eliminando el latch
                     sessionStorage.removeItem(otpLatchKey);
+                    // LOGGING
+                    console.error(JSON.stringify({ event: 'AUTH_2FA_OTP_API_FAIL', timestamp: new Date().toISOString(), userId: currentUser.id, error: otpErr.message }));
                   }
                 }
               } else {
@@ -168,6 +184,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       } catch (error) {
         if (mountedRef.current) setLoading(false);
+        // LOGGING
+        console.error(JSON.stringify({ event: 'AUTH_INIT_ERROR', timestamp: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));
       }
     };
 
@@ -183,6 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSigningOut.current) return;
     isSigningOut.current = true;
     setLoading(true);
+    // LOGGING
+    console.info(JSON.stringify({ event: 'AUTH_SIGNOUT_CLICK', timestamp: new Date().toISOString() }));
     try {
       setUser(null);
       setInternalUser(null);
