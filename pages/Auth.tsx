@@ -267,7 +267,7 @@ const Auth: React.FC = () => {
 
           {recoveryStep === 'otp' && (
             <form onSubmit={handleRecoveryOTPVerify} className="space-y-6">
-               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
+               <input type="text" maxLength={6} required autoFocus className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-black text-center text-4xl tracking-[12px] outline-none" value={recoveryOTP} onChange={e => setRecoveryOTP(e.target.value.replace(/\D/g, ''))} placeholder="000000" />
                <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black hover:bg-violet-700 transition-all">Validar código</button>
                <button type="button" onClick={() => setRecoveryStep('email')} className="w-full text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600">Volver a intentar con otro email</button>
             </form>

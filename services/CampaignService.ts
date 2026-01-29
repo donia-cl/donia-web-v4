@@ -54,7 +54,8 @@ export class CampaignService {
         }
       } catch (netError: any) {
         this.aiEnabled = false; 
-        console.error("Error fetching AI configuration:", netError);
+        // LOGGING
+        console.error(JSON.stringify({ event: 'CAMPAIGN_CONFIG_FETCH_ERROR', timestamp: new Date().toISOString(), error: netError.message }));
       }
   }
 
@@ -115,7 +116,8 @@ export class CampaignService {
       });
       return all;
     } catch (e) { 
-      console.error("Error fetching campaigns from API:", e);
+      // LOGGING
+      console.warn(JSON.stringify({ event: 'CAMPAIGNS_FETCH_FAIL', timestamp: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }));
       return this.localCampaigns; 
     }
   }
@@ -128,7 +130,8 @@ export class CampaignService {
       const json = await resp.json();
       return (json.data || []).map((c: any) => this.mapCampaign(c));
     } catch (e) { 
-      console.error("Error fetching user campaigns from API:", e);
+      // LOGGING
+      console.warn(JSON.stringify({ event: 'USER_CAMPAIGNS_FETCH_FAIL', timestamp: new Date().toISOString(), userId, error: e instanceof Error ? e.message : String(e) }));
       return this.localCampaigns.filter(c => c.owner_id === userId);
     }
   }
@@ -157,7 +160,8 @@ export class CampaignService {
         campaign: d.campaign
       }));
     } catch (e) { 
-      console.error("Error fetching user donations:", e);
+      // LOGGING
+      console.error(JSON.stringify({ event: 'USER_DONATIONS_FETCH_FAIL', timestamp: new Date().toISOString(), userId, error: e instanceof Error ? e.message : String(e) }));
       return []; 
     }
   }
@@ -172,13 +176,16 @@ export class CampaignService {
       if (!json.success || !json.data) return local || null;
       return this.mapCampaign(json.data);
     } catch (e) { 
-      console.error("Error fetching campaign by ID from API:", e);
+      // LOGGING
+      console.warn(JSON.stringify({ event: 'CAMPAIGN_BY_ID_FETCH_FAIL', timestamp: new Date().toISOString(), campaignId: id, error: e instanceof Error ? e.message : String(e) }));
       return local || null; 
     }
   }
 
   async createCampaign(campaign: Partial<CampaignData>): Promise<CampaignData> {
       await this.initialize();
+      // LOGGING
+      console.info(JSON.stringify({ event: 'CAMPAIGN_CREATE_START', timestamp: new Date().toISOString(), owner: campaign.owner_id }));
       try {
         const response = await fetch('/api/campaigns', {
             method: 'POST',
@@ -187,13 +194,18 @@ export class CampaignService {
         });
         if (!response.ok) {
            const errJson = await response.json();
+           // LOGGING
+           console.error(JSON.stringify({ event: 'CAMPAIGN_CREATE_API_ERROR', timestamp: new Date().toISOString(), error: errJson.error }));
            throw new Error(errJson.error || "API Error al crear campaña");
         }
         const json = await response.json();
         if (!json.success) throw new Error(json.error || 'Error creating campaign');
+        // LOGGING
+        console.info(JSON.stringify({ event: 'CAMPAIGN_CREATE_SUCCESS', timestamp: new Date().toISOString(), campaignId: json.data?.id }));
         return this.mapCampaign(json.data);
       } catch (e) {
-        console.error("Error creating campaign (API or mock):", e);
+        // LOGGING
+        console.warn(JSON.stringify({ event: 'CAMPAIGN_CREATE_FALLBACK_LOCAL', timestamp: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }));
         const newCampaign: CampaignData = {
           ...campaign as any,
           id: `local-${Date.now()}`,
@@ -215,30 +227,48 @@ export class CampaignService {
 
   async updateCampaign(id: string, userId: string, updates: Partial<CampaignData>): Promise<CampaignData> {
       await this.initialize();
+      // LOGGING
+      console.info(JSON.stringify({ event: 'CAMPAIGN_UPDATE_START', timestamp: new Date().toISOString(), campaignId: id, userId }));
       const response = await fetch('/api/update-campaign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, userId, updates })
       });
       const json = await response.json();
-      if (!json.success) throw new Error(json.error || 'Error updating campaign');
+      if (!json.success) {
+        // LOGGING
+        console.error(JSON.stringify({ event: 'CAMPAIGN_UPDATE_FAIL', timestamp: new Date().toISOString(), campaignId: id, error: json.error }));
+        throw new Error(json.error || 'Error updating campaign');
+      }
+      // LOGGING
+      console.info(JSON.stringify({ event: 'CAMPAIGN_UPDATE_SUCCESS', timestamp: new Date().toISOString(), campaignId: id }));
       return this.mapCampaign(json.data);
   }
 
   async cancelCampaign(campaignId: string, userId: string, otpCode?: string): Promise<CampaignData> {
     await this.initialize();
+    // LOGGING
+    console.info(JSON.stringify({ event: 'CAMPAIGN_CANCEL_START', timestamp: new Date().toISOString(), campaignId, userId, hasOtp: !!otpCode }));
     const response = await fetch('/api/cancel-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ campaignId, userId, otpCode })
     });
     const json = await response.json();
-    if (!json.success) throw new Error(json.error || 'Error cancelando campaña');
+    if (!json.success) {
+      // LOGGING
+      console.error(JSON.stringify({ event: 'CAMPAIGN_CANCEL_FAIL', timestamp: new Date().toISOString(), campaignId, error: json.error }));
+      throw new Error(json.error || 'Error cancelando campaña');
+    }
+    // LOGGING
+    console.info(JSON.stringify({ event: 'CAMPAIGN_CANCEL_SUCCESS', timestamp: new Date().toISOString(), campaignId }));
     return this.mapCampaign(json.data);
   }
 
   async deleteCampaign(id: string, userId: string): Promise<boolean> {
       await this.initialize();
+      // LOGGING
+      console.info(JSON.stringify({ event: 'CAMPAIGN_DELETE_ATTEMPT', timestamp: new Date().toISOString(), campaignId: id, userId }));
       try {
         const response = await fetch('/api/delete-campaign', {
           method: 'POST',
@@ -247,15 +277,20 @@ export class CampaignService {
         });
         const json = await response.json();
         if (!json.success) throw new Error(json.error || 'Error eliminando campaña');
+        // LOGGING
+        console.info(JSON.stringify({ event: 'CAMPAIGN_DELETE_SUCCESS', timestamp: new Date().toISOString(), campaignId: id }));
         return true;
       } catch (e) {
-        console.error("Error deleting campaign:", e);
+        // LOGGING
+        console.error(JSON.stringify({ event: 'CAMPAIGN_DELETE_ERROR', timestamp: new Date().toISOString(), campaignId: id, error: e instanceof Error ? e.message : String(e) }));
         throw e;
       }
   }
 
   async uploadImage(base64: string, name: string): Promise<string> {
       await this.initialize();
+      // LOGGING
+      console.info(JSON.stringify({ event: 'IMAGE_UPLOAD_START', timestamp: new Date().toISOString(), name, size: base64.length }));
       try {
         const response = await fetch('/api/upload', {
             method: 'POST',
@@ -264,13 +299,18 @@ export class CampaignService {
         });
         if (!response.ok) {
           const errJson = await response.json();
+          // LOGGING
+          console.error(JSON.stringify({ event: 'IMAGE_UPLOAD_API_ERROR', timestamp: new Date().toISOString(), error: errJson.error }));
           throw new Error(errJson.error || "Upload failed");
         }
         const json = await response.json();
         if (!json.success) throw new Error(json.error);
+        // LOGGING
+        console.info(JSON.stringify({ event: 'IMAGE_UPLOAD_SUCCESS', timestamp: new Date().toISOString(), url: json.url }));
         return json.url;
       } catch (e) {
-        console.error("Error uploading image:", e);
+        // LOGGING
+        console.error(JSON.stringify({ event: 'IMAGE_UPLOAD_EXCEPTION', timestamp: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }));
         throw e;
       }
   }
@@ -280,6 +320,8 @@ export class CampaignService {
       if (!this.aiEnabled) {
         return story;
       }
+      // LOGGING
+      console.info(JSON.stringify({ event: 'AI_POLISH_START', timestamp: new Date().toISOString(), storyLength: story.length }));
       try {
           const response = await fetch('/api/polish', {
               method: 'POST',
@@ -288,18 +330,25 @@ export class CampaignService {
           });
           if (!response.ok) {
             const errJson = await response.json();
+            // LOGGING
+            console.warn(JSON.stringify({ event: 'AI_POLISH_API_ERROR', timestamp: new Date().toISOString(), error: errJson.error }));
             throw new Error(errJson.error || "AI polishing failed");
           }
           const json = await response.json();
+          // LOGGING
+          console.info(JSON.stringify({ event: 'AI_POLISH_SUCCESS', timestamp: new Date().toISOString() }));
           return json.text || story;
       } catch (e) { 
-        console.error("Error polishing story with AI:", e);
+        // LOGGING
+        console.warn(JSON.stringify({ event: 'AI_POLISH_FALLBACK', timestamp: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }));
         return story; 
       }
   }
 
   async requestWithdrawal(userId: string, campaignId: string, monto: number, otpCode: string): Promise<any> {
     await this.initialize();
+    // LOGGING
+    console.info(JSON.stringify({ event: 'WITHDRAWAL_REQUEST_START', timestamp: new Date().toISOString(), userId, campaignId, monto }));
     try {
       const response = await fetch('/api/request-withdrawal', {
         method: 'POST',
@@ -307,10 +356,17 @@ export class CampaignService {
         body: JSON.stringify({ userId, campaignId, monto, otpCode })
       });
       const json = await response.json();
-      if (!json.success) throw new Error(json.error || "Error solicitando retiro.");
+      if (!json.success) {
+        // LOGGING
+        console.error(JSON.stringify({ event: 'WITHDRAWAL_REQUEST_FAIL', timestamp: new Date().toISOString(), userId, error: json.error }));
+        throw new Error(json.error || "Error solicitando retiro.");
+      }
+      // LOGGING
+      console.info(JSON.stringify({ event: 'WITHDRAWAL_REQUEST_SUCCESS', timestamp: new Date().toISOString(), userId, requestId: json.data?.id }));
       return json.data;
     } catch (e) {
-      console.error("Error requesting withdrawal:", e);
+      // LOGGING
+      console.error(JSON.stringify({ event: 'WITHDRAWAL_REQUEST_EXCEPTION', timestamp: new Date().toISOString(), userId, error: e instanceof Error ? e.message : String(e) }));
       throw e;
     }
   }

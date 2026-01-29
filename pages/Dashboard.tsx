@@ -143,7 +143,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
             <div className="space-y-4">
               <div className="grid grid-cols-12 px-4 mb-2">
                 <div className="col-span-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Donante / Fecha</div>
-                <div className="col-span-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto</div>
+                <div className="col-span-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Donación</div>
                 <div className="col-span-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</div>
               </div>
               {donations.map((don) => {
@@ -155,7 +155,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
                       <p className="text-[10px] text-slate-400 font-medium">{new Date(don.fecha).toLocaleDateString('es-CL')}</p>
                     </div>
                     <div className="col-span-3 text-center">
-                      <p className="font-black text-slate-900 text-sm">${don.amountTotal.toLocaleString('es-CL')}</p>
+                      <p className="font-black text-slate-900 text-sm">${(don.amountCause || 0).toLocaleString('es-CL')}</p>
                     </div>
                     <div className="col-span-3 text-right">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${refundInfo.color}`}>
@@ -177,7 +177,7 @@ const RefundDetailsModal = ({ campaign, onClose }: { campaign: CampaignData, onC
 
         <div className="p-8 border-t border-slate-100 bg-white shrink-0">
           <p className="text-[11px] text-slate-400 font-medium text-center mb-6 px-4 leading-relaxed">
-            Las devoluciones se procesan automáticamente hacia el medio de pago original. Los tiempos dependen de la institución bancaria del donante (entre 5 a 15 días hábiles).
+            Las devoluciones corresponden únicamente al <strong>monto neto de la donación</strong>. La propina voluntaria y la comisión de la pasarela no son reembolsables.
           </p>
           <button 
             onClick={onClose}
@@ -432,7 +432,7 @@ const CancelCampaignModal = ({
   
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-sm rounded-[32px] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-[24px] flex items-center justify-center mx-auto mb-6">
             <AlertTriangle size={32} />
@@ -446,7 +446,7 @@ const CancelCampaignModal = ({
             <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 mb-6 text-left">
               <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Aviso Importante</p>
               <p className="text-[11px] text-rose-700 font-bold leading-tight">
-                Esta campaña ya tiene aportes. La cancelación podría requerir revisiones adicionales por parte de Donia.
+                Esta campaña ya tiene aportes. La cancelación podría requerir revisiones adicionales por parte de Donia para procesar devoluciones.
               </p>
             </div>
           )}
@@ -697,6 +697,7 @@ const Dashboard: React.FC = () => {
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [rutError, setRutError] = useState<string | null>(null);
   const [bankRutError, setBankRutError] = useState<string | null>(null);
+  const [bankAccountError, setBankAccountError] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState<{show: boolean, msg: string}>({show: false, msg: ''});
   const [profileSaving, setProfileSaving] = useState(false);
   const [bankSaving, setBankSaving] = useState(false);
@@ -862,11 +863,22 @@ const Dashboard: React.FC = () => {
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // 1. Validar RUT
     if (!validateRut(bankForm.holderRut)) {
       setBankRutError("RUT del titular inválido.");
       return;
     } else {
       setBankRutError(null);
+    }
+
+    // 2. Validar Número de Cuenta (Longitud chilena estándar)
+    const accLen = bankForm.accountNumber.length;
+    if (accLen < 7 || accLen > 12) {
+      setBankAccountError("El número de cuenta debe tener entre 7 y 12 dígitos.");
+      return;
+    } else {
+      setBankAccountError(null);
     }
     
     try {
@@ -880,12 +892,16 @@ const Dashboard: React.FC = () => {
   const triggerWithdrawal = async (campaignId: string, monto: number, otpCode: string) => {
     if (!user) return;
     setActionLoading(campaignId);
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_TRIGGER_START', timestamp: new Date().toISOString(), userId: user.id, campaignId, monto }));
     try {
       await service.requestWithdrawal(user.id, campaignId, monto, otpCode);
       setOtpModal(null);
       setShowWithdrawalSuccess(true);
       loadAllData(true);
     } catch (e: any) { 
+      // LOGGING
+      console.error(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_TRIGGER_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
       throw e; 
     } finally { 
       setActionLoading(null); 
@@ -894,6 +910,8 @@ const Dashboard: React.FC = () => {
 
   const handleWithdrawalRequest = (campaignId: string, monto: number) => {
     if (!user) return;
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_WITHDRAWAL_MODAL_OPEN', timestamp: new Date().toISOString(), userId: user.id, campaignId, monto }));
     if (!bankAccount) {
       setShowBankAlert(true);
       return;
@@ -919,6 +937,8 @@ const Dashboard: React.FC = () => {
   const triggerCancelCampaign = async (campaignId: string, otpCode?: string) => {
     if (!user) return;
     setIsCancellingLoading(true);
+    // LOGGING
+    console.info(JSON.stringify({ event: 'DASHBOARD_CANCEL_CAMPAIGN_START', timestamp: new Date().toISOString(), userId: user.id, campaignId }));
     try {
       await service.cancelCampaign(campaignId, user.id, otpCode);
       setCampaignToCancel(null);
@@ -927,6 +947,8 @@ const Dashboard: React.FC = () => {
       setNotification({ title: "Éxito", desc: "Campaña cancelada con éxito.", type: "success" });
     } catch (e: any) {
       if (otpCode) throw e;
+      // LOGGING
+      console.error(JSON.stringify({ event: 'DASHBOARD_CANCEL_CAMPAIGN_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
       setNotification({ title: "Error", desc: e.message, type: "error" });
     } finally {
       setIsCancellingLoading(false);
@@ -951,11 +973,15 @@ const Dashboard: React.FC = () => {
         const newStatus = isPausing ? 'pausada' : 'activa';
         setConfirmModal(null);
         setActionLoading(c.id);
+        // LOGGING
+        console.info(JSON.stringify({ event: 'DASHBOARD_PAUSE_TOGGLE_START', timestamp: new Date().toISOString(), userId: user.id, campaignId: c.id, newStatus }));
         try {
           await service.updateCampaign(c.id, user.id, { estado: newStatus });
           await loadAllData(true);
           displayToast(`Campaña ${isPausing ? 'pausada' : 'reanudada'} correctamente.`);
         } catch (e: any) {
+          // LOGGING
+          console.error(JSON.stringify({ event: 'DASHBOARD_PAUSE_TOGGLE_FAIL', timestamp: new Date().toISOString(), userId: user.id, error: e.message }));
           setNotification({ title: "Error", desc: e.message, type: "error" });
         } finally {
           setActionLoading(null);
@@ -970,6 +996,7 @@ const Dashboard: React.FC = () => {
     const withdrawnForThisCampaign = withdrawals
       .filter(w => w.campaignId === campaignToCancel.id && (w.estado === 'pendiente' || w.estado === 'completado'))
       .reduce((acc, w) => acc + Number(w.monto), 0);
+    // Fix: Use the correct variable name 'withdrawnForThisCampaign' instead of the undefined 'yaRetirado'
     const balance = (Number(campaignToCancel.recaudado) || 0) - withdrawnForThisCampaign;
 
     if (balance > 0) {
@@ -1004,6 +1031,12 @@ const Dashboard: React.FC = () => {
   const handleBankRutBlur = () => {
     if (bankForm.holderRut && !validateRut(bankForm.holderRut)) setBankRutError("RUT del titular inválido.");
     else setBankRutError(null);
+  };
+
+  const handleBankAccountBlur = () => {
+    const accLen = bankForm.accountNumber.length;
+    if (accLen > 0 && (accLen < 7 || accLen > 12)) setBankAccountError("Debe tener entre 7 y 12 dígitos.");
+    else setBankAccountError(null);
   };
 
   const copyLink = (id: string) => {
@@ -1234,7 +1267,7 @@ const Dashboard: React.FC = () => {
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">RECAUDACIÓN EN CURSO (NO RETIRABLE)</p>
                  <p className="text-4xl font-black text-slate-900">${financials?.enCursoNoDisponible.toLocaleString('es-CL') || '0'}</p>
                  <div className="bg-slate-200/50 text-slate-600 px-3 py-1.5 rounded-full text-[10px] font-black flex items-center gap-2 w-fit mt-5">
-                   <Info size={14} />
+                   <span className="animate-pulse w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                    <span>Se liberan al finalizar cada campaña</span>
                  </div>
                </div>
@@ -1348,7 +1381,20 @@ const Dashboard: React.FC = () => {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Institución Bancaria</label><select className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-bold" value={bankForm.bankName} onChange={e => setBankForm({...bankForm, bankName: e.target.value})} required><option value="">Selecciona Banco</option>{CHILEAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tipo de Cuenta</label><select className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 rounded-2xl font-bold" value={bankForm.accountType} onChange={e => setBankForm({...bankForm, accountType: e.target.value})} required><option value="">Tipo de cuenta</option>{ACCOUNT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                      <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Número de Cuenta</label><input type="text" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl font-bold" placeholder="XXXXXXXXX" value={bankForm.accountNumber} onChange={e => setBankForm({...bankForm, accountNumber: e.target.value.replace(/\D/g, '')})} required /></div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Número de Cuenta</label>
+                        <input 
+                          type="text" 
+                          maxLength={12}
+                          className={`w-full p-4 bg-slate-50 border-2 ${bankAccountError ? 'border-rose-200 bg-rose-50' : 'border-transparent focus:border-violet-200 focus:bg-white'} rounded-2xl font-bold transition-all`} 
+                          placeholder="XXXXXXXXX" 
+                          value={bankForm.accountNumber} 
+                          onChange={e => setBankForm({...bankForm, accountNumber: e.target.value.replace(/\D/g, '')})} 
+                          onBlur={handleBankAccountBlur}
+                          required 
+                        />
+                        {bankAccountError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankAccountError}</p>}
+                      </div>
                       <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Titular de la Cuenta</label><input type="text" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-violet-200 focus:bg-white rounded-2xl font-bold" placeholder="Nombre completo" value={bankForm.holderName} onChange={e => setBankForm({...bankForm, holderName: e.target.value})} required /></div>
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">RUT del Titular</label>
@@ -1364,7 +1410,7 @@ const Dashboard: React.FC = () => {
                         {bankRutError && <p className="text-[10px] text-rose-600 font-bold mt-1 ml-1">{bankRutError}</p>}
                       </div>
                    </div>
-                   <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsEditingBank(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" disabled={bankSaving || !!bankRutError} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 shadow-lg flex items-center justify-center gap-2">{bankSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar Datos Bancarios</button></div>
+                   <div className="pt-4 flex gap-3"><button type="button" onClick={() => setIsEditingBank(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button><button type="submit" disabled={bankSaving || !!bankRutError || !!bankAccountError} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-violet-700 shadow-lg flex items-center justify-center gap-2">{bankSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Guardar Datos Bancarios</button></div>
                 </form>
               )}
             </div>
