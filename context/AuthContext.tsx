@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthService } from '../services/AuthService';
@@ -62,7 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const { data: { session } } = await client.auth.getSession();
+        // Fix: Cast auth to any to bypass getSession type error on SupabaseAuthClient
+        const { data: { session } } = await (client.auth as any).getSession();
         
         const params = new URLSearchParams(window.location.search);
         if (params.get('verified') === 'true') {

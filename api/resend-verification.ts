@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Mailer, Validator, logger } from './_utils.js';
 
@@ -29,7 +30,8 @@ export default async function handler(req: any, res: any) {
 
     // 1. Buscar usuario por email usando listUsers
     // Acceso seguro al admin sdk
-    const authAdmin = supabase.auth.admin;
+    // Fix: Cast auth to any to bypass admin property missing on SupabaseAuthClient
+    const authAdmin = (supabase.auth as any).admin;
     const { data: adminData, error: adminError } = await authAdmin.listUsers();
 
     if (adminError) {

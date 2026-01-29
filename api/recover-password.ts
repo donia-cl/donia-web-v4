@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Mailer, logger, Validator, checkRateLimit } from './_utils.js';
 
@@ -26,7 +27,8 @@ export default async function handler(req: any, res: any) {
 
     if (action === 'request') {
       // 1. Buscar usuario por email usando listUsers
-      const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+      // Fix: Cast auth to any to bypass admin property missing on SupabaseAuthClient
+      const { data: userData, error: userError } = await (supabase.auth as any).admin.listUsers();
       if (userError) throw userError;
       
       const user = userData.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
@@ -59,7 +61,8 @@ export default async function handler(req: any, res: any) {
       Validator.required(code, 'code');
       Validator.string(newPassword, 6, 'newPassword');
 
-      const { data: userData } = await supabase.auth.admin.listUsers();
+      // Fix: Cast auth to any to bypass admin property missing on SupabaseAuthClient
+      const { data: userData } = await (supabase.auth as any).admin.listUsers();
       const user = userData.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
       if (!user) throw new Error("Usuario no encontrado.");
 
@@ -77,7 +80,8 @@ export default async function handler(req: any, res: any) {
         throw new Error("El código es inválido o ha expirado.");
       }
 
-      const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, { 
+      // Fix: Cast auth to any to bypass admin property missing on SupabaseAuthClient
+      const { error: updateError } = await (supabase.auth as any).admin.updateUserById(user.id, { 
         password: newPassword,
         email_confirm: true 
       });

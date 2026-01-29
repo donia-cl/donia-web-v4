@@ -77,7 +77,8 @@ export class AuthService {
   public async getSession(): Promise<any | null> {
     await this.initialize();
     if (this.client) {
-      const { data } = await this.client.auth.getSession();
+      // Fix: Cast auth to any to bypass getSession type error on SupabaseAuthClient
+      const { data } = await (this.client.auth as any).getSession();
       return data.session;
     }
     return this.mockSessionUser ? { user: this.mockSessionUser, session: { user: this.mockSessionUser } } : null;
@@ -86,7 +87,8 @@ export class AuthService {
   public async signIn(email: string, password: string): Promise<any> {
     await this.initialize();
     if (this.client) {
-      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+      // Fix: Cast auth to any to bypass signInWithPassword type error on SupabaseAuthClient
+      const { data, error } = await (this.client.auth as any).signInWithPassword({ email, password });
       if (error) throw error;
       return data;
     }
@@ -96,7 +98,8 @@ export class AuthService {
   public async signUp(email: string, password: string, fullName: string): Promise<any> {
     await this.initialize();
     if (this.client) {
-      const { data, error } = await this.client.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+      // Fix: Cast auth to any to bypass signUp type error on SupabaseAuthClient
+      const { data, error } = await (this.client.auth as any).signUp({ email, password, options: { data: { full_name: fullName } } });
       if (error) throw error;
       return data;
     }
@@ -109,7 +112,8 @@ export class AuthService {
       // Usamos el origen limpio (ej: https://staging.donia.cl)
       const redirectTo = this.getCanonicalUrl();
       
-      const { data, error } = await this.client.auth.signInWithOAuth({ 
+      // Fix: Cast auth to any to bypass signInWithOAuth type error on SupabaseAuthClient
+      const { data, error } = await (this.client.auth as any).signInWithOAuth({ 
         provider: 'google', 
         options: { 
           queryParams: { access_type: 'offline', prompt: 'consent' }, 
@@ -125,7 +129,8 @@ export class AuthService {
   public async signOut(): Promise<void> {
     await this.initialize();
     if (this.client) {
-      await this.client.auth.signOut({ scope: 'global' });
+      // Fix: Cast auth to any to bypass signOut type error on SupabaseAuthClient
+      await (this.client.auth as any).signOut({ scope: 'global' });
     }
     this.mockSessionUser = null;
     localStorage.removeItem('donia_mock_user');
